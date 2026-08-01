@@ -25,3 +25,11 @@ provider-neutral port. Its output must contain exactly the requested number of u
 pairs and cover nouns, verbs, adjectives, collocations, phrasal verbs, and expressions as the count
 allows. Invalid output is rejected rather than truncated or padded. Every accepted candidate remains
 proposed and editable in a draft collection.
+
+## Photo, review, and persistence boundaries
+
+Photo ingestion accepts only supported image metadata with explicit consent, scans before
+extraction, and deletes temporary media after both success and failure. Review operations require an
+authenticated owner and an explicit selection. Persistence is isolated behind an ownership-safe,
+optimistically versioned repository; the deterministic in-memory adapter supports application tests
+until the database adapter is wired into the API composition root.
