@@ -4,6 +4,10 @@ import type {
   TypedCandidateAnalysisRequest,
   TypedCandidateAnalyzer,
 } from "./typed-input.js";
+import type {
+  TopicCandidateGenerationRequest,
+  TopicCandidateGenerator,
+} from "./topic-generation.js";
 
 export class FixedLanguageDetector implements LanguageDetector {
   readonly inputs: string[] = [];
@@ -39,6 +43,32 @@ export class DeterministicTypedCandidateAnalyzer implements TypedCandidateAnalyz
         sourceLanguage: request.detectedLanguage,
         sense: `validated sense for ${this.translations[sourceTerm] ?? sourceTerm}`,
         partOfSpeech: "other",
+      })),
+    );
+  }
+}
+
+const topicCategories = [
+  "noun",
+  "verb",
+  "adjective",
+  "collocation",
+  "phrasal-verb",
+  "expression",
+] as const;
+
+export class DeterministicTopicCandidateGenerator implements TopicCandidateGenerator {
+  readonly requests: TopicCandidateGenerationRequest[] = [];
+  constructor(private readonly outputOverride?: unknown) {}
+  generate(request: TopicCandidateGenerationRequest): Promise<unknown> {
+    this.requests.push(structuredClone(request));
+    if (this.outputOverride !== undefined) return Promise.resolve(this.outputOverride);
+    return Promise.resolve(
+      Array.from({ length: request.requestedCount }, (_, index) => ({
+        englishTerm: `${request.topic} term ${String(index + 1)}`,
+        sense: `${request.level} sense ${String(index + 1)}`,
+        partOfSpeech: topicCategories[index % topicCategories.length],
+        sourceContext: request.topic,
       })),
     );
   }

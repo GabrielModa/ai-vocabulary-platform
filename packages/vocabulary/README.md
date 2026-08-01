@@ -17,3 +17,11 @@ phrases. It normalizes whitespace, removes duplicate entries, preserves order, a
 100 entries rather than truncating them. Language detection and linguistic analysis are ports; real
 provider integrations are outside this package. Analyzer output must preserve every input in order
 and pass structural validation before draft candidates are created.
+
+## Topic generation pipeline
+
+Topic input accepts a subject, a requested count from 1–100, and a CEFR level. Generation is a
+provider-neutral port. Its output must contain exactly the requested number of unique term/sense
+pairs and cover nouns, verbs, adjectives, collocations, phrasal verbs, and expressions as the count
+allows. Invalid output is rejected rather than truncated or padded. Every accepted candidate remains
+proposed and editable in a draft collection.
