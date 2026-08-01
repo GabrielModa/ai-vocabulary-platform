@@ -45,3 +45,10 @@ steps. The private reporting process is in the root `SECURITY.md`.
 The authorization matrix format is documented in `packages/auth/README.md`. No account eligibility,
 minor consent, residency, or retention policy is inferred by this foundation; those remain launch
 blockers requiring approval.
+
+# CI security review
+
+Pull requests run dependency policy, secret-pattern scanning, dependency review, production
+dependency audit, and CodeQL analysis without production credentials. Workflow actions must use full
+commit SHAs, permissions are deny-by-default, and security reports must exclude source values,
+environment values, request content, and learner data.

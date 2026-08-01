@@ -14,6 +14,9 @@
     "boundaries": "node scripts/check-boundaries.mjs",
     "build": "turbo run build",
     "clean": "turbo run clean && rm -rf .turbo coverage",
+    "ci:all": "pnpm ci:security && pnpm ci:quality",
+    "ci:quality": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:accessibility && pnpm build",
+    "ci:security": "node scripts/ci-policy.mjs",
     "contract:check": "pnpm --filter @vocabulary/api-contract contract:check",
     "contract:generate": "pnpm --filter @vocabulary/api-contract contract:generate",
     "format": "prettier --write .",
@@ -21,6 +24,7 @@
     "lint": "eslint . --max-warnings=0 && pnpm boundaries && pnpm contract:check && pnpm format:check",
     "prepare": "husky",
     "test": "vitest run --passWithNoTests",
+    "test:accessibility": "vitest run packages/ui apps/web apps/admin --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json && turbo run typecheck"
   },
@@ -36,7 +40,8 @@
     "turbo": "^2.5.6",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.42.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.1"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,tsx}": [
