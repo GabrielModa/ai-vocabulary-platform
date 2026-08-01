@@ -318,6 +318,47 @@ textarea {
 .privacy-note {
   font-size: 0.85rem;
 }
+.training-panel {
+  display: grid;
+  grid-column: 2;
+  gap: 1.25rem;
+}
+.training-panel h2 {
+  grid-column: auto;
+}
+.progress-label {
+  margin: 0;
+  color: #c6ff48;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+blockquote {
+  margin: 0;
+  padding: 1.5rem;
+  border-left: 3px solid #c6ff48;
+  border-radius: 0 0.8rem 0.8rem 0;
+  background: #15191f;
+  color: #f5f4ef;
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  line-height: 1.5;
+}
+.result-panel > p:not(.eyebrow) {
+  margin: 0;
+  color: #aeb4bd;
+  line-height: 1.6;
+}
+.result-mark {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #c6ff48;
+  color: #080a0e !important;
+  font-size: 1.5rem;
+  font-weight: 900;
+}
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -339,6 +380,9 @@ select:focus-visible {
   .candidate-list,
   .review-actions,
   .privacy-note {
+    grid-column: 1;
+  }
+  .training-panel {
     grid-column: 1;
   }
   .form-row {

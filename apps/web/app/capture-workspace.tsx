@@ -30,6 +30,8 @@ const preview = [
 export function CaptureWorkspace() {
   const [mode, setMode] = useState<Mode>("topic");
   const [reviewing, setReviewing] = useState(false);
+  const [training, setTraining] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [selected, setSelected] = useState(() => new Set(preview.map(({ term }) => term)));
   function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -151,7 +153,7 @@ export function CaptureWorkspace() {
               </button>
             </form>
           </section>
-        ) : (
+        ) : !training ? (
           <section className="capture-card review-card" aria-labelledby="review-title">
             <div className="step">
               <span>2</span>
@@ -203,13 +205,70 @@ export function CaptureWorkspace() {
               >
                 Back
               </button>
-              <button type="button" className="primary-action" disabled={selected.size === 0}>
+              <button
+                type="button"
+                className="primary-action"
+                disabled={selected.size === 0}
+                onClick={() => {
+                  setTraining(true);
+                }}
+              >
                 Confirm and start training <span aria-hidden="true">→</span>
               </button>
             </div>
             <p className="privacy-note">
               Nothing is added silently. You control every word in this collection.
             </p>
+          </section>
+        ) : (
+          <section className="capture-card training-card" aria-labelledby="training-title">
+            <div className="step">
+              <span>3</span>
+              <p>Retrieve in context</p>
+            </div>
+            {!completed ? (
+              <form
+                className="training-panel"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setCompleted(true);
+                }}
+              >
+                <p className="progress-label">Question 1 of {selected.size}</p>
+                <h2 id="training-title">What word completes this football context?</h2>
+                <blockquote>“The players walked onto the ___ before the match.”</blockquote>
+                <label>
+                  Your answer
+                  <input required name="answer" autoComplete="off" autoFocus />
+                </label>
+                <button className="primary-action" type="submit">
+                  Check my answer <span aria-hidden="true">→</span>
+                </button>
+              </form>
+            ) : (
+              <div className="training-panel result-panel" role="status" aria-live="polite">
+                <p className="result-mark" aria-hidden="true">
+                  ✓
+                </p>
+                <p className="eyebrow">Attempt recorded</p>
+                <h2 id="training-title">The expected answer is “pitch”.</h2>
+                <p>A pitch is the surface where a football match is played.</p>
+                <button
+                  className="primary-action"
+                  type="button"
+                  onClick={() => {
+                    setReviewing(false);
+                    setTraining(false);
+                    setCompleted(false);
+                  }}
+                >
+                  Create another word set
+                </button>
+                <p className="privacy-note">
+                  This result describes this attempt only. Mastery develops across future practice.
+                </p>
+              </div>
+            )}
           </section>
         )}
       </div>

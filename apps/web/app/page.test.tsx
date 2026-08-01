@@ -30,4 +30,18 @@ describe("VocabularyPage", () => {
     expect(screen.getByRole("button", { name: "Edit pitch" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Confirm and start training/u })).toBeEnabled();
   });
+  it("connects confirmation to retrieval and immediate feedback", () => {
+    render(<VocabularyPage />);
+    const captureForm = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!captureForm) throw new Error("missing capture form");
+    fireEvent.submit(captureForm);
+    fireEvent.click(screen.getByRole("button", { name: /Confirm and start training/u }));
+    expect(
+      screen.getByRole("heading", { name: "What word completes this football context?" }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Your answer"), { target: { value: "pitch" } });
+    fireEvent.click(screen.getByRole("button", { name: /Check my answer/u }));
+    expect(screen.getByRole("status")).toHaveTextContent("The expected answer is “pitch”.");
+    expect(screen.getByText(/This result describes this attempt only/u)).toBeInTheDocument();
+  });
 });
