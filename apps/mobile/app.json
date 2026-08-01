@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Vocabulary Platform",
+    "slug": "ai-vocabulary-platform",
+    "scheme": "vocabulary",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gabrielmoda.vocabulary"
+    },
+    "android": {
+      "package": "com.gabrielmoda.vocabulary"
+    }
+  }
+}

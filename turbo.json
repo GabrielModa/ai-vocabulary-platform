@@ -7,7 +7,9 @@
     "NEXT_PUBLIC_APP_ENV",
     "NEXT_PUBLIC_API_URL",
     "EXPO_PUBLIC_APP_ENV",
-    "EXPO_PUBLIC_API_URL"
+    "EXPO_PUBLIC_API_URL",
+    "EXPO_NO_TELEMETRY",
+    "__UNSAFE_EXPO_HOME_DIRECTORY"
   ],
   "tasks": {
     "build": {

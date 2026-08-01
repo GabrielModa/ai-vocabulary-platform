@@ -1,0 +1,34 @@
+{
+  "name": "@vocabulary/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "android": "expo start --android",
+    "build": "expo export --platform android --output-dir dist/android && expo export --platform ios --output-dir dist/ios",
+    "clean": "rm -rf .expo dist coverage",
+    "dev": "expo start",
+    "ios": "expo start --ios",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-native-community/netinfo": "12.0.1",
+    "@vocabulary/config": "workspace:*",
+    "expo": "57.0.9",
+    "expo-router": "57.0.9",
+    "expo-status-bar": "57.0.1",
+    "react": "19.2.8",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "5.8.0",
+    "react-native-screens": "^4.26.0"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "14.0.1",
+    "@types/react": "^19.2.2",
+    "react-test-renderer": "19.2.8",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
