@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible defect
+title: "fix: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private user data, or security vulnerabilities.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the smallest safe sequence that reproduces the problem.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Platform, operating system, browser, and relevant non-sensitive configuration.
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Who is affected and how severe is the effect?

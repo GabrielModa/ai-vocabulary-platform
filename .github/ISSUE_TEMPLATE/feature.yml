@@ -1,0 +1,29 @@
+name: Feature proposal
+description: Propose a user or engineering capability
+title: "feat: "
+labels: ["proposal", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the learner or engineering problem without prescribing a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: What measurable outcome would show that this is useful?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and learning rationale
+      description: Include research, feedback, or operational evidence when available.
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and risks
+      description: Consider privacy, accessibility, safety, offline behavior, cost, and migration.

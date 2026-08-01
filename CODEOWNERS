@@ -1,0 +1,7 @@
+# Replace or extend these entries as the maintainer team grows.
+* @GabrielModa
+
+/.github/ @GabrielModa
+/docker/ @GabrielModa
+/packages/config/ @GabrielModa
+/packages/database/ @GabrielModa

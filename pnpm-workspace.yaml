@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  esbuild: true
+
+catalog:
+  typescript: ^5.9.2
+  zod: ^4.1.5
+
+onlyBuiltDependencies:
+  - esbuild

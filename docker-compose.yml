@@ -1,0 +1,37 @@
+name: ai-vocabulary-platform
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: vocabulary
+      POSTGRES_PASSWORD: vocabulary
+      POSTGRES_USER: vocabulary
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vocabulary -d vocabulary"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgres-data:
+  redis-data:
