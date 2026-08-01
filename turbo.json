@@ -4,6 +4,8 @@
   "globalDependencies": [".env", ".env.local", "tsconfig.base.json"],
   "globalEnv": [
     "NODE_ENV",
+    "ADMIN_APP_ENV",
+    "ADMIN_API_URL",
     "NEXT_PUBLIC_APP_ENV",
     "NEXT_PUBLIC_API_URL",
     "EXPO_PUBLIC_APP_ENV",
