@@ -23,3 +23,19 @@ record privacy-safe telemetry, and cache only when classification permits.
 
 Provider selection, queue topology, cache keys, evaluation datasets, and budgets are architecture
 decisions.
+
+# AI system
+
+## Capability boundaries
+
+`packages/ai` defines separate replaceable ports for text generation, image analysis, speech
+synthesis, transcription, and pronunciation assessment. Domain and application consumers depend on
+these contracts rather than provider SDKs.
+
+Each execution records model, prompt, schema, and policy versions together with usage, provenance,
+and uncertainty. Requests explicitly classify privacy and cache eligibility and carry timeout and
+cancellation controls. Sensitive inputs cannot be marked cache-eligible.
+
+Provider output is untrusted and must pass the consumer-owned Zod schema before crossing into
+application logic. Provider adapters and real prompts are introduced only in dedicated later tasks;
+deterministic fakes support current tests without network calls.
