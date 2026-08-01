@@ -24,3 +24,21 @@ Do not create another batch until this one is reviewed and approved.
 
 “Scaffold” means runnable infrastructure with health/smoke tests only. It does not authorize product
 screens, lesson logic, authentication flows, database domain schemas, or AI provider calls.
+
+## Approved functional vertical-slice batch
+
+Approved after completion of tasks 001–015. Execute in order and keep each task independently
+reviewable.
+
+| Task | Title                                      | Depends on |
+| ---- | ------------------------------------------ | ---------- |
+| 016  | Model learner-owned vocabulary collections | 010, 014   |
+| 017  | Add typed-word candidate pipeline          | 016        |
+| 018  | Add topic and requested-count generation   | 016, 017   |
+| 019  | Add privacy-safe photo ingestion           | 016, 017   |
+| 020  | Add candidate review and confirmation API  | 016–019    |
+| 021  | Persist confirmed vocabulary collections   | 010, 020   |
+| 022  | Build learner capture and review interface | 020, 021   |
+| 023  | Generate contextual training challenges    | 014, 021   |
+| 024  | Add first retrieval training session       | 021, 023   |
+| 025  | Prove the end-to-end vocabulary loop       | 022–024    |

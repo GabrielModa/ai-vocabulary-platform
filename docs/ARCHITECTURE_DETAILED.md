@@ -180,3 +180,13 @@ time zones/DST, and assistive technology. Flaky-test exceptions need owner and e
 Implementation tasks must name their owning context, ports/contracts, data classification,
 idempotency behavior, offline impact, observability, migration/rollback, and required tests. No task
 may introduce an unrecorded cross-context table dependency or provider SDK in domain code.
+
+# Vocabulary collection domain
+
+`packages/vocabulary` owns the provider-neutral collection aggregate. It represents text, topic, and
+photo sources, learner ownership, CEFR A2–C2, requested topic size, source context, word sense, part
+of speech, and candidate confirmation state.
+
+AI or extraction results enter only as proposed candidates. A collection cannot become eligible for
+training until the learner explicitly confirms one or more candidates. Persistence, HTTP, provider
+orchestration, and training consume this domain in later vertical-slice tasks.
