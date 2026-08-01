@@ -1,0 +1,24 @@
+{
+  "name": "@vocabulary/api-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/generated/client.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist coverage",
+    "contract:check": "node --import tsx src/cli.ts check",
+    "contract:generate": "node --import tsx src/cli.ts generate",
+    "lint": "eslint src --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "paths": {
+    "/v1/health/live": {},
+    "/v1/health/ready": {}
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "required": ["status"],
+        "properties": { "status": {} }
+      },
+      "NotReadyError": {
+        "required": ["status"],
+        "properties": { "status": {} }
+      },
+      "Error": {
+        "required": ["code", "message", "requestId"],
+        "properties": {
+          "code": {},
+          "message": {},
+          "requestId": {}
+        }
+      }
+    }
+  }
+}

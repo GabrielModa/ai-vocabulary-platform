@@ -22,3 +22,15 @@ tests, and authorization tests gate changes.
 
 Endpoint inventory, schemas, authentication flows, offline sync protocol, and error catalog are
 completed in the architecture milestone.
+
+## Contract workflow
+
+`packages/api-contract/src/spec.ts` owns the current contract. Run `pnpm contract:generate` after
+changing it and commit the reviewable `openapi.json` and generated TypeScript client. The client is
+framework-independent and must not import API server code.
+
+`pnpm contract:check` verifies deterministic generation, contract lint rules, and compatibility with
+the separate compatibility baseline. Removing a path, schema, or required response field fails the
+check even after regeneration. Generation never overwrites the baseline. Additive evolution is
+allowed; deliberate breaking changes require a versioned API and migration plan before updating the
+baseline.

@@ -41,6 +41,9 @@ jobs:
       - name: Verify architecture boundaries
         run: pnpm boundaries
 
+      - name: Verify OpenAPI contract
+        run: pnpm contract:check
+
       - name: Typecheck
         run: pnpm typecheck
 
