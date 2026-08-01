@@ -23,18 +23,18 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && turbo run typecheck"
   },
   "devDependencies": {
-    "@eslint/js": "^9.35.0",
-    "@types/node": "^24.3.1",
-    "eslint": "^9.35.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.2",
+    "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^16.3.0",
+    "globals": "^17.8.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.1.6",
+    "lint-staged": "^17.2.0",
     "prettier": "^3.6.2",
     "turbo": "^2.5.6",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.42.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.10"
   },
   "lint-staged": {
     "*.{js,cjs,mjs,ts,tsx}": [
