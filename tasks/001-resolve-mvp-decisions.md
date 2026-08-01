@@ -20,6 +20,18 @@ Architecture intentionally leaves audience, regions, content scope, retention, a
 - Every listed decision is accepted or explicitly deferred with owner, deadline, and blocker.
 - No technical implementation is introduced.
 
+## Decisions recorded
+
+- Initial range: CEFR A2–C2; initial interface language: English.
+- Primary MVP: photo/text capture in English or another language, AI extraction and sense
+  normalization, learner confirmation, personalized contextual training, and spaced review.
+- A topic plus desired size (for example, “football — 30 words”) can generate a level-adapted,
+  balanced collection and the same complete training ecosystem.
+- Optional onboarding catalog: approximately 500 starter words.
+- Training begins with image/sentence choices, four or five options, audio, feedback, explanation,
+  and five contexts, then adds reverse recall, typing, listening, speaking, and dialogue.
+- Remaining operational/commercial decisions stay open in `docs/DECISIONS.md`.
+
 ## BDD Scenarios
 
 `Given` an open foundation decision, `when` the decision record is reviewed, `then` its status,

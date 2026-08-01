@@ -17,8 +17,14 @@ may later live in `docs/decisions/`.
 | D-010 | Accepted | Use client-generated immutable attempt IDs | Durable offline capture and deterministic deduplication   |
 | D-011 | Accepted | Separate API and worker deployment units   | Independent permissions, scaling, and failure handling    |
 | D-012 | Accepted | Use expand/migrate/contract DB changes     | Compatible deployment and recoverable migration           |
+| D-013 | Accepted | Support CEFR A2–C2 initially               | Intermediate through advanced mastery                     |
+| D-014 | Accepted | Use English as the initial UI language     | Immersive experience with one launch copy system          |
+| D-015 | Accepted | Make captured vocabulary the MVP loop      | Personal photos/text become contextual training           |
+| D-016 | Accepted | Keep 500 starter words optional            | Fast onboarding without replacing personalization         |
+| D-017 | Accepted | Confirm AI candidates before collection    | Extraction, sense, and translation can be ambiguous       |
+| D-018 | Accepted | Generate collections from topics and size  | A theme can become a complete personalized game ecosystem |
 
 ## Decisions required
 
-Launch audience/regions, MVP scope, mastery algorithm, raw audio retention, hosting topology,
-RPO/RTO/SLOs, cost ceiling, payment timing, and social/moderation scope remain proposed or open.
+Launch regions, mastery algorithm, raw audio retention, hosting topology, RPO/RTO/SLOs, cost
+ceiling, payment timing, and social/moderation scope remain proposed or open.

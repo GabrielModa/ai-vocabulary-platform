@@ -12,6 +12,12 @@
 10. A degraded provider must not destroy progress or block already-downloaded learning.
 11. One primary action per screen; secondary actions remain discoverable and accessible.
 12. Experiments need a hypothesis, guardrails, exit criteria, and learning-quality measurement.
+13. User-submitted photos and text produce editable candidates; AI never silently adds them to a
+    learning collection.
+14. Preserve source context and selected word sense so training teaches what the learner intended.
+15. The starter catalog is optional; personalized collections are the primary product loop.
+16. Topic-generated collections respect the requested size and CEFR level, balance useful word
+    classes and expressions, avoid duplicates, and remain editable before training.
 
 ## Content acceptance
 
