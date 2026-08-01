@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contextRoot",
+    "contractDirectories",
+    "layers",
+    "layerRules",
+    "domainForbiddenPackages",
+    "workspaceRules"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "contextRoot": { "type": "string" },
+    "contractDirectories": { "type": "array", "items": { "type": "string" } },
+    "layers": { "type": "array", "items": { "type": "string" } },
+    "layerRules": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "domainForbiddenPackages": { "type": "array", "items": { "type": "string" } },
+    "workspaceRules": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    }
+  }
+}

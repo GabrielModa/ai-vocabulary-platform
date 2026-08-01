@@ -1,0 +1,32 @@
+{
+  "$schema": "./architecture-boundaries.schema.json",
+  "contextRoot": "apps/api/src/contexts",
+  "contractDirectories": ["contracts", "public"],
+  "layers": ["domain", "application", "adapters", "delivery"],
+  "layerRules": {
+    "domain": ["domain"],
+    "application": ["domain", "application"],
+    "adapters": ["domain", "application", "adapters"],
+    "delivery": ["domain", "application", "delivery"]
+  },
+  "domainForbiddenPackages": [
+    "@nestjs/",
+    "better-auth",
+    "drizzle-orm",
+    "openai",
+    "posthog-",
+    "@sentry/",
+    "stripe",
+    "ioredis",
+    "@aws-sdk/"
+  ],
+  "workspaceRules": {
+    "@vocabulary/shared": [],
+    "@vocabulary/config": ["@vocabulary/shared"],
+    "@vocabulary/testing": ["@vocabulary/shared"],
+    "@vocabulary/ui": ["@vocabulary/shared"],
+    "@vocabulary/database": ["@vocabulary/config", "@vocabulary/shared"],
+    "@vocabulary/auth": ["@vocabulary/config", "@vocabulary/shared"],
+    "@vocabulary/ai": ["@vocabulary/config", "@vocabulary/shared"]
+  }
+}

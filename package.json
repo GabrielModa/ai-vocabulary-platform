@@ -11,11 +11,12 @@
     "pnpm": ">=11.0.0"
   },
   "scripts": {
+    "boundaries": "node scripts/check-boundaries.mjs",
     "build": "turbo run build",
     "clean": "turbo run clean && rm -rf .turbo coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint . --max-warnings=0 && pnpm format:check",
+    "lint": "eslint . --max-warnings=0 && pnpm boundaries && pnpm format:check",
     "prepare": "husky",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",

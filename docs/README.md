@@ -21,6 +21,7 @@ accepted entry in `DECISIONS.md` wins, followed by the more specific document.
 ## Architecture and data
 
 - [Detailed architecture baseline](ARCHITECTURE_DETAILED.md)
+- [Enforced boundaries](BOUNDARIES.md)
 - [Architecture](ARCHITECTURE.md)
 - [Database](DATABASE.md)
 - [API](API.md)
