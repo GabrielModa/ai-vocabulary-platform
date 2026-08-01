@@ -1,11 +1,14 @@
 import "reflect-metadata";
 import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
+import { SafeTelemetry } from "@vocabulary/observability";
+import { CapturingTelemetryExporter } from "@vocabulary/observability/testing";
 import request from "supertest";
 import { afterEach, describe, expect, it } from "vitest";
 import { AppModule } from "./app.module.js";
 import { HEALTH_DEPENDENCY, type HealthDependency } from "./platform/health/health-dependency.js";
 import { requestIdMiddleware } from "./platform/request-id.middleware.js";
+import { requestTelemetryMiddleware } from "./platform/request-telemetry.middleware.js";
 
 const applications: INestApplication[] = [];
 type SupertestApplication = Parameters<typeof request>[0];
@@ -15,13 +18,17 @@ function httpServer(app: INestApplication): SupertestApplication {
   return server as SupertestApplication;
 }
 
-async function createTestApp(dependency: HealthDependency): Promise<INestApplication> {
+async function createTestApp(
+  dependency: HealthDependency,
+  telemetry?: SafeTelemetry,
+): Promise<INestApplication> {
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(HEALTH_DEPENDENCY)
     .useValue(dependency)
     .compile();
   const app = module.createNestApplication();
   app.use(requestIdMiddleware);
+  if (telemetry) app.use(requestTelemetryMiddleware(telemetry));
   app.setGlobalPrefix("v1");
   await app.init();
   applications.push(app);
@@ -61,5 +68,23 @@ describe("API foundation", () => {
       .get("/v1/health/live")
       .set("x-request-id", "unsafe value");
     expect(unsafe.headers["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/u);
+  });
+
+  it("captures health telemetry without request secrets", async () => {
+    const exporter = new CapturingTelemetryExporter();
+    const app = await createTestApp(
+      { check: () => Promise.resolve(true) },
+      new SafeTelemetry(exporter),
+    );
+    await request(httpServer(app))
+      .get("/v1/health/live?token=classified-test-secret")
+      .set("x-request-id", "request_12345678")
+      .expect(200);
+    expect(exporter.signals).toHaveLength(1);
+    const signal = exporter.signals[0];
+    expect(signal?.kind).toBe("metric");
+    expect(signal?.name).toBe("http.request");
+    expect(signal?.context.requestId).toBe("request_12345678");
+    expect(JSON.stringify(exporter.signals)).not.toContain("classified-test-secret");
   });
 });
