@@ -27,3 +27,13 @@ and never blocks input or learning feedback.
 Tokens and component APIs are versioned. New variants need a documented repeated use case. Visual
 regression, keyboard, screen-reader, contrast, text-scaling, and reduced-motion checks are required
 before a shared component is stable.
+
+## Foundation package
+
+`@vocabulary/ui` version 1.0.0 is the cross-platform semantic source. Web and native adapters map
+the same intent without sharing rendering implementations. The initial primitives are Button, Text,
+and Surface; product screens compose them but do not add accessibility behavior to the package.
+
+The automated contract validates WCAG AA color pairs, 44 × 44 minimum targets, focus visibility,
+screen-reader naming, scalable native text, and zero-duration nonessential animation under reduced
+motion. State changes remain explicit through text and accessibility state when animation is absent.
