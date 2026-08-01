@@ -33,3 +33,10 @@ extraction, and deletes temporary media after both success and failure. Review o
 authenticated owner and an explicit selection. Persistence is isolated behind an ownership-safe,
 optimistically versioned repository; the deterministic in-memory adapter supports application tests
 until the database adapter is wired into the API composition root.
+
+## Contextual retrieval training
+
+Confirmed, approved candidates can produce one validated contextual challenge each through a
+provider-neutral generator. The first session presents challenges sequentially, normalizes learner
+answers, records immutable attempts, and immediately preserves the correct model for feedback. Its
+score describes only that session and is deliberately separate from mastery, XP, and rewards.
