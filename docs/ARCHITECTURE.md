@@ -24,5 +24,5 @@ OpenAPI is the external contract. Writes are idempotent where retries are possib
 publishes committed events. Correlation IDs, structured logs, metrics, and traces cross asynchronous
 boundaries. Provider failures degrade gracefully.
 
-Detailed components, runtime topology, data flows, ownership enforcement, and decision records are
-defined in the next architecture milestone.
+Detailed components, runtime topology, data flows, synchronization, ownership enforcement, and
+operational behavior are defined in [Detailed architecture baseline](ARCHITECTURE_DETAILED.md).

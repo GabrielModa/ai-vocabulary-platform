@@ -20,6 +20,7 @@ accepted entry in `DECISIONS.md` wins, followed by the more specific document.
 
 ## Architecture and data
 
+- [Detailed architecture baseline](ARCHITECTURE_DETAILED.md)
 - [Architecture](ARCHITECTURE.md)
 - [Database](DATABASE.md)
 - [API](API.md)
@@ -38,5 +39,5 @@ accepted entry in `DECISIONS.md` wins, followed by the more specific document.
 - [Decisions](DECISIONS.md)
 - [Risks](RISKS.md)
 
-The architecture documents currently define constraints and ownership. Detailed component, contract,
-schema, and deployment designs are completed in the architecture milestone.
+The detailed baseline defines component, contract, schema, synchronization, security, testing, and
+deployment behavior used for implementation task planning.
