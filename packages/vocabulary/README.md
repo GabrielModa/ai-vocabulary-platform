@@ -9,3 +9,11 @@ training. Exact English-term/sense duplicates are rejected while separate senses
 
 This package does not persist collections, invoke AI providers, store photo bytes, expose HTTP
 routes, or implement training activities. Those responsibilities belong to later approved tasks.
+
+## Typed input pipeline
+
+Typed input accepts comma-, semicolon-, or newline-separated terms while preserving multi-word
+phrases. It normalizes whitespace, removes duplicate entries, preserves order, and rejects more than
+100 entries rather than truncating them. Language detection and linguistic analysis are ports; real
+provider integrations are outside this package. Analyzer output must preserve every input in order
+and pass structural validation before draft candidates are created.

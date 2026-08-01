@@ -190,3 +190,8 @@ of speech, and candidate confirmation state.
 AI or extraction results enter only as proposed candidates. A collection cannot become eligible for
 training until the learner explicitly confirms one or more candidates. Persistence, HTTP, provider
 orchestration, and training consume this domain in later vertical-slice tasks.
+
+Typed-word ingestion separates deterministic parsing from replaceable language detection and
+linguistic analysis. The parser preserves phrases and learner order, while the analyzer boundary
+must return one validated result per normalized entry. Missing, reordered, additional, or invalid
+results fail before reaching the collection aggregate.
