@@ -1,0 +1,2 @@
+openvino-genai==2026.2.1.0
+Pillow>=11.3.0,<13

@@ -37,3 +37,7 @@ test-results/
 /services/image-worker/cache/
 /services/image-worker/generated/
 /services/image-worker/*.png
+
+# Python bytecode and local tooling
+__pycache__/
+*.py[cod]
