@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type SyntheticEvent } from "react";
+import Image from "next/image";
+import { useEffect, useState, type SyntheticEvent } from "react";
 
 type Mode = "words" | "topic" | "photo";
 const modeCopy: Record<Mode, { title: string; description: string }> = {
@@ -30,6 +31,89 @@ interface Attempt {
   readonly term: string;
   readonly chosenTerm: string;
   readonly correct: boolean;
+}
+
+interface ImageJob {
+  readonly id: string;
+  readonly status: string;
+  readonly imagePath?: string | null;
+}
+
+async function enqueueImage(candidate: Candidate, level: string): Promise<ImageJob | undefined> {
+  try {
+    const response = await fetch("/api/vocabulary/image", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        term: candidate.term,
+        meaning: candidate.meaning,
+        context: candidate.example,
+        level,
+      }),
+    });
+    return response.ok ? ((await response.json()) as ImageJob) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function PracticeImage({ candidate, level }: { candidate: Candidate; level: string }) {
+  const [job, setJob] = useState<ImageJob>();
+  useEffect(() => {
+    let active = true;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    async function poll(nextJob?: ImageJob) {
+      try {
+        const current = nextJob ?? (await enqueueImage(candidate, level));
+        if (!active || !current) return;
+        setJob(current);
+        if (["queued", "generating"].includes(current.status)) {
+          timeout = setTimeout(() => {
+            void fetch(`/api/vocabulary/image/${current.id}`, { cache: "no-store" })
+              .then((response) =>
+                response.ok ? (response.json() as Promise<ImageJob>) : undefined,
+              )
+              .then((updated) => {
+                if (updated) void poll(updated);
+              });
+          }, 2_500);
+        }
+      } catch {
+        setJob(undefined);
+      }
+    }
+    void poll();
+    return () => {
+      active = false;
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [candidate, level]);
+
+  if (job?.status === "ready") {
+    return (
+      <figure className="practice-image ready">
+        <Image
+          unoptimized
+          width={512}
+          height={512}
+          src={`/api/vocabulary/image/${job.id}?file=1`}
+          alt={`Educational visual clue for ${candidate.term}`}
+        />
+        <figcaption>Visual clue · generated and checked locally</figcaption>
+      </figure>
+    );
+  }
+  return (
+    <div className="practice-image placeholder" aria-live="polite">
+      <span aria-hidden="true">◌</span>
+      <p>
+        {job?.status === "rejected"
+          ? "Visual clue was withheld by the safety check."
+          : "Creating a safe visual clue in the background…"}
+      </p>
+      <small>You can keep learning while it is prepared.</small>
+    </div>
+  );
 }
 
 function formText(form: FormData, name: string): string {
@@ -82,6 +166,7 @@ export function CaptureWorkspace() {
   const [selected, setSelected] = useState(() => new Set<string>());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+  const [level, setLevel] = useState("B1");
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (mode === "photo") {
@@ -97,17 +182,21 @@ export function CaptureWorkspace() {
     setLoading(true);
     setError(undefined);
     try {
+      const requestedLevel = formText(form, "level");
       const response = await fetch("/api/vocabulary/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ topic, requestedCount, level: formText(form, "level") }),
+        body: JSON.stringify({ topic, requestedCount, level: requestedLevel }),
       });
       if (!response.ok) throw new Error("generation failed");
       const result = (await response.json()) as { title: string; candidates: Candidate[] };
       setCandidates(result.candidates);
       setTitle(result.title);
       setSelected(new Set(result.candidates.map(({ term }) => term)));
+      setLevel(requestedLevel);
       setReviewing(true);
+      for (const candidate of result.candidates.slice(0, 4))
+        void enqueueImage(candidate, requestedLevel);
     } catch {
       setError("Local AI could not generate this set. Make sure Ollama is running and try again.");
     } finally {
@@ -376,6 +465,7 @@ export function CaptureWorkspace() {
                   Question {questionIndex + 1} of {trainingCandidates.length}
                 </p>
                 <h2 id="training-title">Which word completes the sentence?</h2>
+                <PracticeImage candidate={currentCandidate} level={level} />
                 <div className="sentence-with-audio">
                   <blockquote>“{sentenceWithGap(currentCandidate)}”</blockquote>
                   <button

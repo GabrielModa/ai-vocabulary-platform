@@ -8,7 +8,11 @@ from image_worker.domain import ImageQueue, InvalidImageRequest, VocabularyImage
 from image_worker.openvino_engine import OpenVinoImageEngine
 
 ROOT = Path(__file__).resolve().parents[1]
-queue = ImageQueue(OpenVinoImageEngine(ROOT / "models" / "lcm-dreamshaper-int8"), ROOT / "generated" / "quarantine")
+queue = ImageQueue(
+    OpenVinoImageEngine(ROOT / "models" / "lcm-dreamshaper-int8"),
+    ROOT / "generated" / "quarantine",
+    ROOT / "cache" / "approved",
+)
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "VocabularyImageWorker/0.1"
@@ -30,6 +34,20 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith(prefix):
             job = queue.get(path.removeprefix(prefix))
             self._json(HTTPStatus.OK, job.public()) if job else self._json(HTTPStatus.NOT_FOUND, {"error": "Job not found"})
+            return
+        file_prefix = "/v1/images/files/"
+        if path.startswith(file_prefix):
+            image = queue.approved_file(path.removeprefix(file_prefix))
+            if image is None:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "Approved image not found"})
+                return
+            payload = image.read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+            self.end_headers()
+            self.wfile.write(payload)
             return
         self._json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
 
