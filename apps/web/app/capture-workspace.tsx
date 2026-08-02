@@ -34,10 +34,14 @@ interface Attempt {
 }
 
 interface ImageJob {
-  readonly id: string;
+  readonly id?: string;
   readonly status: string;
+  readonly error?: string | null;
   readonly imagePath?: string | null;
 }
+
+const IMAGE_POLL_INTERVAL_MS = 2_500;
+const IMAGE_JOB_TIMEOUT_MS = 180_000;
 
 async function enqueueImage(candidate: Candidate, level: string): Promise<ImageJob | undefined> {
   try {
@@ -51,7 +55,7 @@ async function enqueueImage(candidate: Candidate, level: string): Promise<ImageJ
         level,
       }),
     });
-    return response.ok ? ((await response.json()) as ImageJob) : undefined;
+    return (await response.json()) as ImageJob;
   } catch {
     return undefined;
   }
@@ -62,34 +66,49 @@ function PracticeImage({ candidate, level }: { candidate: Candidate; level: stri
   useEffect(() => {
     let active = true;
     let timeout: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    const deadline = Date.now() + IMAGE_JOB_TIMEOUT_MS;
     async function poll(nextJob?: ImageJob) {
       try {
         const current = nextJob ?? (await enqueueImage(candidate, level));
         if (!active || !current) return;
         setJob(current);
-        if (["queued", "generating"].includes(current.status)) {
+        if (["queued", "generating"].includes(current.status) && current.id) {
+          if (Date.now() >= deadline) {
+            setJob({ ...current, status: "unavailable", error: "image_job_timeout" });
+            return;
+          }
+          const jobId = current.id;
           timeout = setTimeout(() => {
-            void fetch(`/api/vocabulary/image/${current.id}`, { cache: "no-store" })
+            void fetch(`/api/vocabulary/image/${jobId}`, {
+              cache: "no-store",
+              signal: controller.signal,
+            })
               .then((response) =>
                 response.ok ? (response.json() as Promise<ImageJob>) : undefined,
               )
               .then((updated) => {
-                if (updated) void poll(updated);
+                if (!active) return;
+                void poll(updated ?? current);
+              })
+              .catch(() => {
+                if (active && !controller.signal.aborted) void poll(current);
               });
-          }, 2_500);
+          }, IMAGE_POLL_INTERVAL_MS);
         }
       } catch {
-        setJob(undefined);
+        if (active && !controller.signal.aborted) setJob({ status: "unavailable" });
       }
     }
     void poll();
     return () => {
       active = false;
+      controller.abort();
       if (timeout) clearTimeout(timeout);
     };
   }, [candidate, level]);
 
-  if (job?.status === "ready") {
+  if (job?.status === "approved" && job.id) {
     return (
       <figure className="practice-image ready">
         <Image
@@ -97,21 +116,32 @@ function PracticeImage({ candidate, level }: { candidate: Candidate; level: stri
           width={512}
           height={512}
           src={`/api/vocabulary/image/${job.id}?file=1`}
-          alt={`Educational visual clue for ${candidate.term}`}
+          alt="Educational visual clue for this exercise"
         />
         <figcaption>Visual clue · generated and checked locally</figcaption>
       </figure>
     );
   }
+  const terminalCopy: Record<string, { title: string; detail: string }> = {
+    rejected: {
+      title: "Visual clue withheld for this context.",
+      detail: "The vocabulary exercise remains available without an image.",
+    },
+    failed: {
+      title: "The local image could not be generated.",
+      detail: "You can continue learning and try images again in another session.",
+    },
+    unavailable: {
+      title: "The local image service is unavailable.",
+      detail: "The exercise still works normally without the visual clue.",
+    },
+  };
+  const terminal = terminalCopy[job?.status ?? "unavailable"];
   return (
     <div className="practice-image placeholder" aria-live="polite">
       <span aria-hidden="true">◌</span>
-      <p>
-        {job?.status === "rejected"
-          ? "Visual clue was withheld by the safety check."
-          : "Creating a safe visual clue in the background…"}
-      </p>
-      <small>You can keep learning while it is prepared.</small>
+      <p>{terminal?.title ?? "Creating a safe visual clue in the background…"}</p>
+      <small>{terminal?.detail ?? "You can keep learning while it is prepared."}</small>
     </div>
   );
 }

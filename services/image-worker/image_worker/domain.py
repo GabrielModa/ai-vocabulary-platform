@@ -12,7 +12,7 @@ import re
 
 LEVELS = frozenset({"A2", "B1", "B2", "C1", "C2"})
 DISALLOWED_IMAGE_TERMS = frozenset({
-    "blood", "corpse", "drug", "gun", "injury", "naked", "nsfw", "porn", "rifle", "sexual", "weapon",
+    "blood", "bomb", "bombing", "corpse", "drug", "explosion", "gun", "injury", "naked", "nsfw", "porn", "rifle", "sexual", "war", "weapon",
 })
 
 class InvalidImageRequest(ValueError):
@@ -92,7 +92,7 @@ class ImageQueue:
                 return existing, False
             approved_file = self._approved / f"{request.job_id}.png"
             if approved_file.is_file():
-                job = ImageJob(request.job_id, "ready", image_path=f"/v1/images/files/{request.job_id}")
+                job = ImageJob(request.job_id, "approved", image_path=f"/v1/images/files/{request.job_id}")
                 self._jobs[job.id] = job
                 return job, False
             job = ImageJob(request.job_id, "queued")
@@ -118,10 +118,10 @@ class ImageQueue:
                 else:
                     self._approved.mkdir(parents=True, exist_ok=True)
                     shutil.move(destination, self._approved / destination.name)
-                    job.status = "ready"
+                    job.status = "approved"
                     job.image_path = f"/v1/images/files/{job.id}"
             except Exception:
-                job.status, job.error = "failed", "Local image generation failed"
+                job.status, job.error = "failed", "image_generation_failed"
             finally:
                 self._queue.task_done()
 

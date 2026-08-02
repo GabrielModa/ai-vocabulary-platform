@@ -1,15 +1,17 @@
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 
 from image_worker.domain import ImageQueue, InvalidImageRequest, VocabularyImageRequest
-from image_worker.openvino_engine import OpenVinoImageEngine
+from image_worker.process_engine import ProcessImageEngine
 
 ROOT = Path(__file__).resolve().parents[1]
+engine = ProcessImageEngine(ROOT / "models" / "lcm-dreamshaper-int8")
 queue = ImageQueue(
-    OpenVinoImageEngine(ROOT / "models" / "lcm-dreamshaper-int8"),
+    engine,
     ROOT / "generated" / "quarantine",
     ROOT / "cache" / "approved",
 )
@@ -28,7 +30,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/health":
-            self._json(HTTPStatus.OK, {"status": "ok", "device": "GPU"})
+            model_ready, reason = engine.readiness()
+            self._json(HTTPStatus.OK, {
+                "status": "ok" if model_ready else "degraded",
+                "device": engine.device,
+                "modelReady": model_ready,
+                "reason": reason,
+            })
             return
         prefix = "/v1/images/jobs/"
         if path.startswith(prefix):
@@ -62,17 +70,32 @@ class Handler(BaseHTTPRequestHandler):
             request = VocabularyImageRequest.from_unknown(json.loads(self.rfile.read(length)))
             job, created = queue.submit(request)
             self._json(HTTPStatus.ACCEPTED if created else HTTPStatus.OK, job.public())
-        except (InvalidImageRequest, json.JSONDecodeError, UnicodeDecodeError):
-            self._json(HTTPStatus.BAD_REQUEST, {"error": "Invalid vocabulary image request"})
+        except InvalidImageRequest:
+            self._json(HTTPStatus.UNPROCESSABLE_ENTITY, {
+                "status": "rejected",
+                "error": "This concept is not eligible for an automatic visual clue",
+            })
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            self._json(HTTPStatus.BAD_REQUEST, {"status": "failed", "error": "Invalid request"})
 
     def log_message(self, format: str, *args: object) -> None:
         return
 
 def main() -> None:
-    server = ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
-    print("Vocabulary image worker: http://127.0.0.1:8765")
-    print("Images remain quarantined until safety approval is implemented.")
-    server.serve_forever()
+    try:
+        engine.initialize()
+    except Exception as error:
+        print(f"Image pipeline unavailable: {error}")
+    port = int(os.environ.get("IMAGE_WORKER_PORT", "8765"))
+    if not 1024 <= port <= 65535:
+        raise RuntimeError("IMAGE_WORKER_PORT must be between 1024 and 65535")
+    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    print(f"Vocabulary image worker: http://127.0.0.1:{port}")
+    print("Images remain quarantined unless the OpenVINO safety checker approves them.")
+    try:
+        server.serve_forever()
+    finally:
+        engine.close()
 
 if __name__ == "__main__":
     main()
