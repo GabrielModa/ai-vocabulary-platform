@@ -6,13 +6,14 @@
   "scripts": {
     "build": "next build",
     "clean": "rm -rf .next coverage",
-    "dev": "next dev",
+    "dev": "corepack pnpm --filter @vocabulary/ai build && next dev",
     "lint": "eslint . --max-warnings=0",
     "start": "next start",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vocabulary/ai": "workspace:*",
     "@vocabulary/config": "workspace:*",
     "next": "16.2.12",
     "react": "19.2.8",
