@@ -39,9 +39,13 @@ const familySense = {
 } as const;
 
 describe("server lexical enrichment", () => {
-  it("uses a single compatible verified sense", async () => {
+  it("uses a canonical candidate with one compatible verified sense", async () => {
     const enriched = await enrichVocabularySet(generated, lookup([familySense]));
+    expect(enriched).toMatchObject({ candidateStrategy: "suggest-verify-select" });
     expect(enriched.candidates[0]).toMatchObject({
+      candidateId: "candidate:uncle:noun",
+      normalizedLemma: "uncle",
+      selectionReasons: ["suggested-by-local-ai", "matched-request-context"],
       meaning: familySense.definition,
       challenge: `Which word matches this meaning: "${familySense.definition}"? ___`,
       exerciseKind: "definition-choice",
@@ -75,5 +79,19 @@ describe("server lexical enrichment", () => {
       meaning: generated.candidates[0]?.meaning,
       lexicalValidationStatus: "unavailable",
     });
+  });
+
+  it("deduplicates normalized AI suggestions and exposes rejections", async () => {
+    const originalCandidate = generated.candidates[0];
+    if (!originalCandidate) throw new Error("expected generated candidate fixture");
+    const duplicated: LocalVocabularySet = {
+      ...generated,
+      candidates: [originalCandidate, { ...originalCandidate, term: " UNCLE " }],
+    };
+    const enriched = await enrichVocabularySet(duplicated, lookup([familySense]));
+    expect(enriched.candidates).toHaveLength(1);
+    expect(enriched.rejectedCandidates).toEqual([
+      { term: " UNCLE ", normalizedLemma: "uncle", reason: "duplicate-term" },
+    ]);
   });
 });
