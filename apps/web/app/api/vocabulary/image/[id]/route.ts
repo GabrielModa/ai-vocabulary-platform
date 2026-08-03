@@ -3,6 +3,12 @@ import { NextResponse } from "next/server";
 const workerUrl = "http://127.0.0.1:8765";
 const validId = /^[a-f0-9]{24}$/u;
 
+function normalizeWorkerJob(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return value;
+  const job = value as Record<string, unknown>;
+  return job.status === "ready" ? { ...job, status: "approved" } : job;
+}
+
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   if (!validId.test(id)) return NextResponse.json({ error: "Invalid image ID" }, { status: 400 });
@@ -15,7 +21,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     });
     if (!response.ok)
       return NextResponse.json({ error: "Image unavailable" }, { status: response.status });
-    if (!wantsFile) return NextResponse.json((await response.json()) as unknown);
+    if (!wantsFile)
+      return NextResponse.json(normalizeWorkerJob((await response.json()) as unknown));
     return new Response(await response.arrayBuffer(), {
       headers: {
         "content-type": "image/png",

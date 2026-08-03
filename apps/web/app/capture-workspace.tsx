@@ -108,7 +108,7 @@ function PracticeImage({ candidate, level }: { candidate: Candidate; level: stri
     };
   }, [candidate, level]);
 
-  if (job?.status === "approved" && job.id) {
+  if (job?.id && ["approved", "ready"].includes(job.status)) {
     return (
       <figure className="practice-image ready">
         <Image
