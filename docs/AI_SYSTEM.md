@@ -48,3 +48,7 @@ silently transferred to modified content.
 Open English WordNet integration uses the official versioned JSON release to build a local lookup
 index. Runtime vocabulary lookup does not scrape HTML or require network access. OEWN identifiers,
 release URL, CC BY 4.0 license, and contributor attribution remain attached to every imported sense.
+
+Server-side enrichment may promote a generated meaning to verified only when OEWN returns exactly
+one sense compatible with the generated word class. Ambiguous senses are retained for later sense
+selection; the system never treats the first dictionary result as authoritative by position.

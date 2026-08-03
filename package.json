@@ -49,5 +49,10 @@
       "prettier --write"
     ],
     "*.{json,jsonc,md,yml,yaml,css,scss}": "prettier --write"
+  },
+  "optionalDependencies": {
+    "@esbuild/win32-x64": "0.28.1",
+    "@next/swc-win32-x64-msvc": "16.2.12",
+    "@rollup/rollup-win32-x64-msvc": "4.62.3"
   }
 }

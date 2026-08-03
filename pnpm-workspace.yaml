@@ -13,3 +13,9 @@ catalog:
 
 onlyBuiltDependencies:
   - esbuild
+
+supportedArchitectures:
+  os:
+    - win32
+  cpu:
+    - x64
