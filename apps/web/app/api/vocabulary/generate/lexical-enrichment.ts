@@ -2,7 +2,9 @@ import type { LocalVocabularySet } from "@vocabulary/ai";
 import {
   buildVerifiedCandidatePipeline,
   OewnLexicalProvider,
+  rankLearningCandidates,
   type CandidateLexicalLookup,
+  type CandidateScoreContribution,
   type LearningCandidate,
   type LexicalContent,
 } from "@vocabulary/domain-vocabulary";
@@ -19,6 +21,9 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly normalizedLemma: string;
   readonly selectionReasons: readonly string[];
   readonly lexicalValidationStatus: "verified" | "provisional" | "unavailable";
+  readonly rank: number;
+  readonly rankingScore: number;
+  readonly rankingContributions: readonly CandidateScoreContribution[];
   readonly senseId?: string;
   readonly lexicalProvenance?: LexicalContent["provenance"];
   readonly lexicalSenses?: readonly LexicalContent[];
@@ -28,6 +33,7 @@ export type EnrichedCandidate = GeneratedCandidate & {
 export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candidates"> {
   readonly candidates: readonly EnrichedCandidate[];
   readonly candidateStrategy: "suggest-verify-select";
+  readonly rankingStrategy: "deterministic-weighted-ranking";
   readonly rejectedCandidates: readonly {
     readonly term: string;
     readonly normalizedLemma?: string;
@@ -74,6 +80,11 @@ export async function loadLocalLexicalLookup(): Promise<LexicalLookup | undefine
 function adaptCandidate(
   generated: GeneratedCandidate,
   candidate: LearningCandidate,
+  ranking: {
+    readonly rank: number;
+    readonly score: number;
+    readonly contributions: readonly CandidateScoreContribution[];
+  },
 ): EnrichedCandidate {
   const base = {
     ...generated,
@@ -81,6 +92,9 @@ function adaptCandidate(
     normalizedLemma: candidate.normalizedLemma,
     selectionReasons: candidate.selectionReasons,
     lexicalSenses: candidate.availableSenses,
+    rank: ranking.rank,
+    rankingScore: ranking.score,
+    rankingContributions: ranking.contributions,
   };
 
   if (candidate.selectedSense) {
@@ -102,13 +116,24 @@ function adaptCandidate(
   };
 }
 
+function generatedCandidateKey(candidate: {
+  readonly term: string;
+  readonly type?: string;
+}): string {
+  return `${candidate.term
+    .normalize("NFKC")
+    .toLocaleLowerCase("en-US")
+    .replace(/\s+/gu, " ")
+    .trim()}:${candidate.type ?? "unknown"}`;
+}
+
 export async function enrichVocabularySet(
   vocabularySet: LocalVocabularySet,
   lookup: LexicalLookup | undefined,
 ): Promise<EnrichedVocabularySet> {
   const generatedByKey = new Map<string, GeneratedCandidate[]>();
   for (const candidate of vocabularySet.candidates) {
-    const key = `${candidate.term.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/gu, " ").trim()}:${candidate.type}`;
+    const key = generatedCandidateKey(candidate);
     generatedByKey.set(key, [...(generatedByKey.get(key) ?? []), candidate]);
   }
 
@@ -121,16 +146,24 @@ export async function enrichVocabularySet(
     lookup,
   );
 
-  const candidates = pipeline.candidates.flatMap((candidate) => {
-    const key = `${candidate.normalizedLemma}:${candidate.proposedPartOfSpeech ?? "unknown"}`;
+  const ranking = rankLearningCandidates(pipeline.candidates.map((candidate) => ({ candidate })));
+
+  const candidates = ranking.ranked.flatMap((ranked) => {
+    const key = generatedCandidateKey({
+      term: ranked.candidate.normalizedLemma,
+      ...(ranked.candidate.proposedPartOfSpeech
+        ? { type: ranked.candidate.proposedPartOfSpeech }
+        : {}),
+    });
     const generated = generatedByKey.get(key)?.shift();
-    return generated ? [adaptCandidate(generated, candidate)] : [];
+    return generated ? [adaptCandidate(generated, ranked.candidate, ranked)] : [];
   });
 
   return {
     ...vocabularySet,
     candidates,
     candidateStrategy: pipeline.strategy,
+    rankingStrategy: ranking.strategy,
     rejectedCandidates: pipeline.rejected,
   };
 }
