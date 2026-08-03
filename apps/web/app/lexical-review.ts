@@ -1,3 +1,5 @@
+import { definitionRecallChallenge, type ExerciseKind } from "./sense-bound-exercise";
+
 export interface ContentProvenance {
   readonly provider: string;
   readonly sourceVersion?: string;
@@ -32,6 +34,7 @@ export interface ReviewCandidate {
   readonly senseId?: string;
   readonly lexicalProvenance?: ContentProvenance;
   readonly lexicalSenses?: readonly LexicalSense[];
+  readonly exerciseKind?: ExerciseKind;
 }
 
 export function compatibleLexicalSenses(candidate: ReviewCandidate): readonly LexicalSense[] {
@@ -56,10 +59,41 @@ export function resolveCandidateSense(
   return {
     ...candidate,
     meaning: sense.definition,
+    challenge: definitionRecallChallenge(sense.definition),
+    exerciseKind: "definition-choice",
     lexicalValidationStatus: "verified",
     senseId: sense.senseId,
     lexicalProvenance: sense.provenance,
   };
+}
+
+function normalizedTerm(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/gu, " ").trim();
+}
+
+export function buildAnswerOptions(
+  current: ReviewCandidate,
+  candidates: readonly ReviewCandidate[],
+): readonly string[] {
+  const ordered = [
+    current,
+    ...candidates.filter(
+      (candidate) => candidate.term !== current.term && candidate.type === current.type,
+    ),
+    ...candidates.filter(
+      (candidate) => candidate.term !== current.term && candidate.type !== current.type,
+    ),
+  ];
+  const seen = new Set<string>();
+  return ordered
+    .filter(({ term }) => {
+      const normalized = normalizedTerm(term);
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    })
+    .slice(0, 4)
+    .map(({ term }) => term);
 }
 
 export function countUnresolvedSelectedCandidates(

@@ -6,6 +6,7 @@ import {
 } from "@vocabulary/domain-vocabulary";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { definitionRecallChallenge, type ExerciseKind } from "../../../sense-bound-exercise";
 
 export interface LexicalLookup {
   lookup(request: { readonly word: string; readonly language: string }): Promise<unknown>;
@@ -18,6 +19,7 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly senseId?: string;
   readonly lexicalProvenance?: LexicalContent["provenance"];
   readonly lexicalSenses?: readonly LexicalContent[];
+  readonly exerciseKind?: ExerciseKind;
 };
 
 export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candidates"> {
@@ -80,6 +82,8 @@ async function enrichCandidate(
     return {
       ...candidate,
       meaning: resolved.definition,
+      challenge: definitionRecallChallenge(resolved.definition),
+      exerciseKind: "definition-choice",
       lexicalValidationStatus: "verified",
       senseId: resolved.senseId,
       lexicalProvenance: resolved.provenance,

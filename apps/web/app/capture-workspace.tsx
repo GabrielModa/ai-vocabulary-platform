@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState, type SyntheticEvent } from "react";
 import {
+  buildAnswerOptions,
   compatibleLexicalSenses,
   countUnresolvedSelectedCandidates,
   requiresSenseConfirmation,
@@ -51,7 +52,8 @@ async function enqueueImage(candidate: Candidate, level: string): Promise<ImageJ
       body: JSON.stringify({
         term: candidate.term,
         meaning: candidate.meaning,
-        context: candidate.example,
+        context:
+          candidate.exerciseKind === "definition-choice" ? candidate.meaning : candidate.example,
         level,
       }),
     });
@@ -231,7 +233,9 @@ export function CaptureWorkspace() {
       setConfirmedMeanings(new Set());
       setLevel(requestedLevel);
       setReviewing(true);
-      for (const candidate of result.candidates.slice(0, 4))
+      for (const candidate of result.candidates
+        .filter((item) => !requiresSenseConfirmation(item))
+        .slice(0, 4))
         void enqueueImage(candidate, requestedLevel);
     } catch {
       setError("Local AI could not generate this set. Make sure Ollama is running and try again.");
@@ -252,9 +256,7 @@ export function CaptureWorkspace() {
   const unresolvedSelectedCount = countUnresolvedSelectedCandidates(candidates, selected);
   const currentCandidate = trainingCandidates[questionIndex];
   const optionPool = currentCandidate
-    ? [currentCandidate, ...trainingCandidates.filter(({ term }) => term !== currentCandidate.term)]
-        .slice(0, 4)
-        .map(({ term }) => term)
+    ? buildAnswerOptions(currentCandidate, trainingCandidates)
     : [];
   const optionOffset = optionPool.length === 0 ? 0 : questionIndex % optionPool.length;
   const answerOptions = [...optionPool.slice(optionOffset), ...optionPool.slice(0, optionOffset)];
@@ -588,7 +590,11 @@ export function CaptureWorkspace() {
                 <p className="progress-label">
                   Question {questionIndex + 1} of {trainingCandidates.length}
                 </p>
-                <h2 id="training-title">Which word completes the sentence?</h2>
+                <h2 id="training-title">
+                  {currentCandidate.exerciseKind === "definition-choice"
+                    ? "Which word matches the verified meaning?"
+                    : "Which word completes the sentence?"}
+                </h2>
                 <PracticeImage candidate={currentCandidate} level={level} />
                 <div className="sentence-with-audio">
                   <blockquote>“{sentenceWithGap(currentCandidate)}”</blockquote>

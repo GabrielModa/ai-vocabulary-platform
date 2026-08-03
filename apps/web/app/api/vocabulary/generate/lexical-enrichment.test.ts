@@ -43,6 +43,8 @@ describe("server lexical enrichment", () => {
     const enriched = await enrichVocabularySet(generated, lookup([familySense]));
     expect(enriched.candidates[0]).toMatchObject({
       meaning: familySense.definition,
+      challenge: `Which word matches this meaning: "${familySense.definition}"? ___`,
+      exerciseKind: "definition-choice",
       senseId: familySense.senseId,
       lexicalValidationStatus: "verified",
     });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAnswerOptions,
   compatibleLexicalSenses,
   countUnresolvedSelectedCandidates,
   resolveCandidateSense,
@@ -77,12 +78,26 @@ describe("lexical review", () => {
     expect(resolveCandidateSense(candidate, "sound-n")).toMatchObject({
       meaning: "The perceived frequency of a sound.",
       lexicalValidationStatus: "verified",
+      exerciseKind: "definition-choice",
+      challenge: 'Which word matches this meaning: "The perceived frequency of a sound."? ___',
       senseId: "sound-n",
       lexicalProvenance: candidate.lexicalSenses?.[2]?.provenance,
     });
     expect(() => resolveCandidateSense(candidate, "throw-v")).toThrow(
       "Selected sense is not compatible",
     );
+  });
+
+  it("prioritizes unique distractors with the same word class", () => {
+    expect(
+      buildAnswerOptions(candidate, [
+        candidate,
+        { ...candidate, term: "field", type: "noun" },
+        { ...candidate, term: "throw", type: "verb" },
+        { ...candidate, term: "tone", type: "noun" },
+        { ...candidate, term: "PITCH", type: "noun" },
+      ]),
+    ).toEqual(["pitch", "field", "tone", "throw"]);
   });
 
   it("counts unresolved ambiguity only among selected candidates", () => {

@@ -69,3 +69,11 @@ background detail, and no written target word. It rejects photographic compositi
 unrelated decorative scenes. Concrete concepts should be easy to infer at a glance; relational or
 abstract concepts may provide context but must not be presented as visually unambiguous when they
 are not.
+
+## Sense-bound retrieval
+
+When a lexical sense becomes verified, the provisional AI cloze is not silently treated as an
+example of that sense. Until a licensed or validated example provider supplies a natural sentence,
+the learner receives a definition-recall question built from the verified definition. Its image
+request uses that same meaning as context, and answer options prioritize the same word class. The
+original cloze remains available only for candidates whose lexical content is still provisional.

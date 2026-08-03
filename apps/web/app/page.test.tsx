@@ -154,6 +154,13 @@ describe("VocabularyPage", () => {
 
     expect(start).toBeEnabled();
     expect(screen.getByText("Meaning confirmed")).toBeInTheDocument();
+    fireEvent.click(start);
+    expect(
+      screen.getByRole("heading", { name: "Which word matches the verified meaning?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Which word matches this meaning.*playing surface used for a sport/u),
+    ).toBeInTheDocument();
   });
   it("connects confirmation to retrieval and immediate feedback", async () => {
     render(<VocabularyPage />);
