@@ -1,6 +1,10 @@
 import { OllamaVocabularyError, OllamaVocabularyGenerator } from "@vocabulary/ai";
 import { NextResponse } from "next/server";
-import { enrichVocabularySet, loadLocalLexicalLookup } from "./lexical-enrichment";
+import {
+  enrichVocabularySet,
+  loadLocalFrequencyLookup,
+  loadLocalLexicalLookup,
+} from "./lexical-enrichment";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -14,11 +18,12 @@ export async function POST(request: Request) {
       ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
       ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
     });
-    const [generated, lexicalLookup] = await Promise.all([
+    const [generated, lexicalLookup, frequencyLookup] = await Promise.all([
       generator.generate(body),
       loadLocalLexicalLookup(),
+      loadLocalFrequencyLookup(),
     ]);
-    return NextResponse.json(await enrichVocabularySet(generated, lexicalLookup));
+    return NextResponse.json(await enrichVocabularySet(generated, lexicalLookup, frequencyLookup));
   } catch (error) {
     if (error instanceof OllamaVocabularyError && error.code === "UNAVAILABLE") {
       return NextResponse.json({ code: "OLLAMA_UNAVAILABLE" }, { status: 503 });

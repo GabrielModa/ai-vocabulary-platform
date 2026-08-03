@@ -3,8 +3,12 @@ import {
   buildVerifiedCandidatePipeline,
   OewnLexicalProvider,
   rankLearningCandidates,
+  SubtlexFrequencyProvider,
+  frequencyContentSchema,
   type CandidateLexicalLookup,
   type CandidateScoreContribution,
+  type FrequencyContent,
+  type FrequencyProvider,
   type LearningCandidate,
   type LexicalContent,
 } from "@vocabulary/domain-vocabulary";
@@ -13,6 +17,7 @@ import { resolve } from "node:path";
 import { definitionRecallChallenge, type ExerciseKind } from "../../../sense-bound-exercise";
 
 export type LexicalLookup = CandidateLexicalLookup;
+export type FrequencyLookup = FrequencyProvider;
 
 type GeneratedCandidate = LocalVocabularySet["candidates"][number];
 
@@ -24,6 +29,9 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly rank: number;
   readonly rankingScore: number;
   readonly rankingContributions: readonly CandidateScoreContribution[];
+  readonly frequencyPercentile?: number;
+  readonly frequencyPerMillion?: number;
+  readonly frequencyProvenance?: FrequencyContent["provenance"];
   readonly senseId?: string;
   readonly lexicalProvenance?: LexicalContent["provenance"];
   readonly lexicalSenses?: readonly LexicalContent[];
@@ -41,9 +49,10 @@ export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candida
   }[];
 }
 
-let cachedLookup: Promise<LexicalLookup> | undefined;
+let cachedLexicalLookup: Promise<LexicalLookup> | undefined;
+let cachedFrequencyLookup: Promise<FrequencyLookup> | undefined;
 
-function indexCandidates(): readonly string[] {
+function lexicalIndexCandidates(): readonly string[] {
   if (process.env.OEWN_INDEX_PATH) return [resolve(process.env.OEWN_INDEX_PATH)];
   return [
     resolve(process.cwd(), "data/oewn/index.json"),
@@ -51,27 +60,52 @@ function indexCandidates(): readonly string[] {
   ];
 }
 
-async function readFirstIndex(): Promise<unknown> {
+function frequencyIndexCandidates(): readonly string[] {
+  if (process.env.SUBTLEX_INDEX_PATH) return [resolve(process.env.SUBTLEX_INDEX_PATH)];
+  return [
+    resolve(process.cwd(), "data/subtlex/index.json"),
+    resolve(process.cwd(), "../../data/subtlex/index.json"),
+  ];
+}
+
+async function readFirstIndex(
+  paths: readonly string[],
+  unavailableMessage: string,
+): Promise<unknown> {
   let lastError: unknown;
-  for (const path of indexCandidates()) {
+  for (const path of paths) {
     try {
       return JSON.parse(await readFile(path, "utf8"));
     } catch (error) {
       lastError = error;
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("OEWN index unavailable");
+  throw lastError instanceof Error ? lastError : new Error(unavailableMessage);
 }
 
 export async function loadLocalLexicalLookup(): Promise<LexicalLookup | undefined> {
-  cachedLookup ??= readFirstIndex()
+  cachedLexicalLookup ??= readFirstIndex(lexicalIndexCandidates(), "OEWN index unavailable")
     .then((index) => new OewnLexicalProvider(index))
     .catch((error: unknown) => {
-      cachedLookup = undefined;
+      cachedLexicalLookup = undefined;
       throw error;
     });
   try {
-    return await cachedLookup;
+    return await cachedLexicalLookup;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function loadLocalFrequencyLookup(): Promise<FrequencyLookup | undefined> {
+  cachedFrequencyLookup ??= readFirstIndex(frequencyIndexCandidates(), "SUBTLEX index unavailable")
+    .then((index) => new SubtlexFrequencyProvider(index))
+    .catch((error: unknown) => {
+      cachedFrequencyLookup = undefined;
+      throw error;
+    });
+  try {
+    return await cachedFrequencyLookup;
   } catch {
     return undefined;
   }
@@ -85,6 +119,7 @@ function adaptCandidate(
     readonly score: number;
     readonly contributions: readonly CandidateScoreContribution[];
   },
+  frequency: FrequencyContent | undefined,
 ): EnrichedCandidate {
   const base = {
     ...generated,
@@ -95,6 +130,13 @@ function adaptCandidate(
     rank: ranking.rank,
     rankingScore: ranking.score,
     rankingContributions: ranking.contributions,
+    ...(frequency
+      ? {
+          frequencyPercentile: frequency.percentile,
+          frequencyPerMillion: frequency.frequencyPerMillion,
+          frequencyProvenance: frequency.provenance,
+        }
+      : {}),
   };
 
   if (candidate.selectedSense) {
@@ -127,9 +169,24 @@ function generatedCandidateKey(candidate: {
     .trim()}:${candidate.type ?? "unknown"}`;
 }
 
+async function lookupFrequency(
+  provider: FrequencyLookup | undefined,
+  word: string,
+): Promise<FrequencyContent | undefined> {
+  if (!provider) return undefined;
+  try {
+    const result = await provider.lookup({ word, language: "en-US" });
+    if (result === undefined) return undefined;
+    return frequencyContentSchema.parse(result);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function enrichVocabularySet(
   vocabularySet: LocalVocabularySet,
-  lookup: LexicalLookup | undefined,
+  lexicalLookup: LexicalLookup | undefined,
+  frequencyLookup?: FrequencyLookup,
 ): Promise<EnrichedVocabularySet> {
   const generatedByKey = new Map<string, GeneratedCandidate[]>();
   for (const candidate of vocabularySet.candidates) {
@@ -143,10 +200,28 @@ export async function enrichVocabularySet(
       proposedPartOfSpeech: candidate.type,
       selectionReasons: ["suggested-by-local-ai", "matched-request-context"],
     })),
-    lookup,
+    lexicalLookup,
   );
 
-  const ranking = rankLearningCandidates(pipeline.candidates.map((candidate) => ({ candidate })));
+  const frequencies = await Promise.all(
+    pipeline.candidates.map((candidate) =>
+      lookupFrequency(frequencyLookup, candidate.normalizedLemma),
+    ),
+  );
+
+  const frequencyByCandidateId = new Map(
+    pipeline.candidates.map((candidate, index) => [candidate.candidateId, frequencies[index]]),
+  );
+
+  const ranking = rankLearningCandidates(
+    pipeline.candidates.map((candidate) => {
+      const frequency = frequencyByCandidateId.get(candidate.candidateId);
+      return {
+        candidate,
+        ...(frequency ? { evidence: { frequencyPercentile: frequency.percentile } } : {}),
+      };
+    }),
+  );
 
   const candidates = ranking.ranked.flatMap((ranked) => {
     const key = generatedCandidateKey({
@@ -156,7 +231,16 @@ export async function enrichVocabularySet(
         : {}),
     });
     const generated = generatedByKey.get(key)?.shift();
-    return generated ? [adaptCandidate(generated, ranked.candidate, ranked)] : [];
+    return generated
+      ? [
+          adaptCandidate(
+            generated,
+            ranked.candidate,
+            ranked,
+            frequencyByCandidateId.get(ranked.candidate.candidateId),
+          ),
+        ]
+      : [];
   });
 
   return {
