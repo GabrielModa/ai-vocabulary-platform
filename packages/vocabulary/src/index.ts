@@ -6,6 +6,7 @@ export * from "./content.js";
 export * from "./frequency.js";
 export * from "./learning-artifact.js";
 export * from "./model.js";
+export * from "./oewn-examples.js";
 export * from "./oewn.js";
 export * from "./photo-ingestion.js";
 export * from "./providers.js";

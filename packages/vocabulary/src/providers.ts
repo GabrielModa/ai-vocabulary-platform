@@ -126,7 +126,7 @@ export interface PronunciationProvider {
 export interface ExampleProvider {
   find(request: {
     readonly senseId: string;
-    readonly level: z.infer<typeof cefrLevelSchema>;
+    readonly level?: z.infer<typeof cefrLevelSchema>;
   }): Promise<unknown>;
 }
 
