@@ -39,3 +39,8 @@ cancellation controls. Sensitive inputs cannot be marked cache-eligible.
 Provider output is untrusted and must pass the consumer-owned Zod schema before crossing into
 application logic. Provider adapters and real prompts are introduced only in dedicated later tasks;
 deterministic fakes support current tests without network calls.
+
+Lexical facts, pronunciation, examples, CEFR classifications, exercises, and images use distinct
+domain ports. A provider result remains `unknown` until its consumer validates the matching strict
+schema. Licensed originals and generated adaptations are stored separately so attribution is never
+silently transferred to modified content.

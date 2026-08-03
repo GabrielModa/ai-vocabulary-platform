@@ -3,6 +3,7 @@ export * from "./challenges.js";
 export * from "./content.js";
 export * from "./model.js";
 export * from "./photo-ingestion.js";
+export * from "./providers.js";
 export * from "./repository.js";
 export * from "./review.js";
 export * from "./session.js";
