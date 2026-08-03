@@ -52,3 +52,11 @@ release URL, CC BY 4.0 license, and contributor attribution remain attached to e
 Server-side enrichment may promote a generated meaning to verified only when OEWN returns exactly
 one sense compatible with the generated word class. Ambiguous senses are retained for later sense
 selection; the system never treats the first dictionary result as authoritative by position.
+
+## Learner-confirmed lexical sense
+
+When OEWN returns multiple senses compatible with a generated candidate's word class, the web review
+keeps the generated meaning provisional and requires an explicit learner choice for selected items.
+Definitions remain collapsed during ordinary review. A chosen OEWN sense replaces the provisional
+meaning and carries its sense ID and provenance into the training candidate. Unselected ambiguous
+items do not block the session.

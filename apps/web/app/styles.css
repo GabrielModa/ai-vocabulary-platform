@@ -271,8 +271,9 @@ textarea {
   border: 1px solid #30363e;
   border-radius: 0.9rem;
   background: #15191f;
+  flex-wrap: wrap;
 }
-.candidate label {
+.candidate-selection {
   display: flex;
   flex: 1;
   align-items: start;
@@ -299,6 +300,37 @@ textarea {
 .candidate label > span > span {
   grid-column: 1 / -1;
   color: #aeb4bd;
+}
+.confirm-meaning-button,
+.meaning-confirmed {
+  flex-basis: 100%;
+  text-align: left;
+}
+.meaning-confirmed {
+  color: #c6ff48;
+  font-size: 0.85rem;
+}
+.meaning-options {
+  display: grid;
+  flex-basis: 100%;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid #3a4048;
+  border-radius: 0.7rem;
+}
+.meaning-options legend {
+  padding: 0 0.4rem;
+  font-weight: 700;
+}
+.meaning-options label {
+  align-items: start;
+  padding: 0.65rem;
+  border-radius: 0.5rem;
+  background: #101318;
+}
+.meaning-options .secondary-action {
+  justify-self: start;
 }
 .sentence-with-audio {
   display: flex;

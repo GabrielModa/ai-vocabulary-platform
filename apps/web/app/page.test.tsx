@@ -38,6 +38,52 @@ const generatedSet = {
   ],
 };
 
+const ambiguousGeneratedSet = {
+  ...generatedSet,
+  candidates: generatedSet.candidates.map((candidate, index) =>
+    index !== 0
+      ? { ...candidate, lexicalValidationStatus: "verified" }
+      : {
+          ...candidate,
+          lexicalValidationStatus: "provisional",
+          lexicalSenses: [
+            {
+              word: "pitch",
+              normalizedWord: "pitch",
+              senseId: "oewn-playing-surface-n",
+              partOfSpeech: "noun",
+              definition: "The playing surface used for a sport.",
+              provenance: {
+                provider: "oewn",
+                sourceId: "oewn-playing-surface-n",
+                license: "CC BY 4.0",
+                attribution: "Open English WordNet",
+                retrievedAt: "2026-08-03T00:00:00.000Z",
+                generated: false,
+                validationStatus: "verified",
+              },
+            },
+            {
+              word: "pitch",
+              normalizedWord: "pitch",
+              senseId: "oewn-musical-frequency-n",
+              partOfSpeech: "noun",
+              definition: "The perceived frequency of a sound.",
+              provenance: {
+                provider: "oewn",
+                sourceId: "oewn-musical-frequency-n",
+                license: "CC BY 4.0",
+                attribution: "Open English WordNet",
+                retrievedAt: "2026-08-03T00:00:00.000Z",
+                generated: false,
+                validationStatus: "verified",
+              },
+            },
+          ],
+        },
+  ),
+};
+
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
@@ -81,6 +127,33 @@ describe("VocabularyPage", () => {
     expect(screen.queryByText("The playing surface.")).not.toBeInTheDocument();
     expect(screen.queryByText("The pitch is wet.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Listen to pitch" })).toBeInTheDocument();
+  });
+  it("requires explicit confirmation for an ambiguous selected meaning", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(ambiguousGeneratedSet), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    render(<VocabularyPage />);
+    const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!form) throw new Error("missing capture form");
+    fireEvent.submit(form);
+    await screen.findByRole("heading", { level: 2, name: "Your football word set" });
+
+    const start = screen.getByRole("button", { name: /start training/u });
+    expect(start).toBeDisabled();
+    expect(screen.queryByText("The playing surface used for a sport.")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm meaning for pitch" }));
+    expect(screen.getByText("The playing surface used for a sport.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "The playing surface used for a sport." }));
+    fireEvent.click(screen.getByRole("button", { name: "Use selected meaning for pitch" }));
+
+    expect(start).toBeEnabled();
+    expect(screen.getByText("Meaning confirmed")).toBeInTheDocument();
   });
   it("connects confirmation to retrieval and immediate feedback", async () => {
     render(<VocabularyPage />);

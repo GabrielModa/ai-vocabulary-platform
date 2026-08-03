@@ -2,6 +2,13 @@
 
 import Image from "next/image";
 import { useEffect, useState, type SyntheticEvent } from "react";
+import {
+  compatibleLexicalSenses,
+  countUnresolvedSelectedCandidates,
+  requiresSenseConfirmation,
+  resolveCandidateSense,
+  type ReviewCandidate,
+} from "./lexical-review";
 
 type Mode = "words" | "topic" | "photo";
 const modeCopy: Record<Mode, { title: string; description: string }> = {
@@ -18,14 +25,7 @@ const modeCopy: Record<Mode, { title: string; description: string }> = {
     description: "Upload a page or object. The photo is processed temporarily and then deleted.",
   },
 };
-interface Candidate {
-  readonly term: string;
-  readonly meaning: string;
-  readonly type: string;
-  readonly example: string;
-  readonly challenge: string;
-  readonly contexts?: readonly string[];
-}
+type Candidate = ReviewCandidate;
 
 interface Attempt {
   readonly term: string;
@@ -194,6 +194,9 @@ export function CaptureWorkspace() {
   const [candidates, setCandidates] = useState<readonly Candidate[]>([]);
   const [title, setTitle] = useState("My word set");
   const [selected, setSelected] = useState(() => new Set<string>());
+  const [expandedMeanings, setExpandedMeanings] = useState(() => new Set<string>());
+  const [selectedSenseIds, setSelectedSenseIds] = useState<Record<string, string>>({});
+  const [confirmedMeanings, setConfirmedMeanings] = useState(() => new Set<string>());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [level, setLevel] = useState("B1");
@@ -223,6 +226,9 @@ export function CaptureWorkspace() {
       setCandidates(result.candidates);
       setTitle(result.title);
       setSelected(new Set(result.candidates.map(({ term }) => term)));
+      setExpandedMeanings(new Set());
+      setSelectedSenseIds({});
+      setConfirmedMeanings(new Set());
       setLevel(requestedLevel);
       setReviewing(true);
       for (const candidate of result.candidates.slice(0, 4))
@@ -243,6 +249,7 @@ export function CaptureWorkspace() {
   }
 
   const trainingCandidates = candidates.filter(({ term }) => selected.has(term));
+  const unresolvedSelectedCount = countUnresolvedSelectedCandidates(candidates, selected);
   const currentCandidate = trainingCandidates[questionIndex];
   const optionPool = currentCandidate
     ? [currentCandidate, ...trainingCandidates.filter(({ term }) => term !== currentCandidate.term)]
@@ -286,6 +293,25 @@ export function CaptureWorkspace() {
     setScore(0);
     setAttempts([]);
     setSessionComplete(false);
+    setExpandedMeanings(new Set());
+    setSelectedSenseIds({});
+    setConfirmedMeanings(new Set());
+  }
+
+  function confirmSense(candidate: Candidate) {
+    const senseId = selectedSenseIds[candidate.term];
+    if (!senseId) return;
+    setCandidates((current) =>
+      current.map((item) =>
+        item.term === candidate.term ? resolveCandidateSense(item, senseId) : item,
+      ),
+    );
+    setExpandedMeanings((current) => {
+      const next = new Set(current);
+      next.delete(candidate.term);
+      return next;
+    });
+    setConfirmedMeanings((current) => new Set(current).add(candidate.term));
   }
 
   const percentage =
@@ -418,40 +444,102 @@ export function CaptureWorkspace() {
               </span>
             </div>
             <ul className="candidate-list">
-              {candidates.map((candidate) => (
-                <li key={candidate.term} className="candidate">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(candidate.term)}
-                      onChange={() => {
-                        toggle(candidate.term);
+              {candidates.map((candidate) => {
+                const compatibleSenses = compatibleLexicalSenses(candidate);
+                const needsConfirmation = requiresSenseConfirmation(candidate);
+                const expanded = expandedMeanings.has(candidate.term);
+                return (
+                  <li key={candidate.term} className="candidate">
+                    <label className="candidate-selection">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(candidate.term)}
+                        onChange={() => {
+                          toggle(candidate.term);
+                        }}
+                      />
+                      <span>
+                        <strong>{candidate.term}</strong>
+                        <small>{candidate.type}</small>
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      className="audio-button"
+                      aria-label={`Listen to ${candidate.term}`}
+                      onClick={() => {
+                        speak(candidate.term);
                       }}
-                    />
-                    <span>
-                      <strong>{candidate.term}</strong>
-                      <small>{candidate.type}</small>
-                    </span>
-                  </label>
-                  <button
-                    type="button"
-                    className="audio-button"
-                    aria-label={`Listen to ${candidate.term}`}
-                    onClick={() => {
-                      speak(candidate.term);
-                    }}
-                  >
-                    🔊
-                  </button>
-                  <button
-                    type="button"
-                    className="text-button"
-                    aria-label={`Edit ${candidate.term}`}
-                  >
-                    Edit
-                  </button>
-                </li>
-              ))}
+                    >
+                      🔊
+                    </button>
+                    <button
+                      type="button"
+                      className="text-button"
+                      aria-label={`Edit ${candidate.term}`}
+                    >
+                      Edit
+                    </button>
+                    {needsConfirmation && (
+                      <button
+                        type="button"
+                        className="text-button confirm-meaning-button"
+                        aria-expanded={expanded}
+                        aria-controls={`meaning-options-${candidate.term}`}
+                        onClick={() => {
+                          setExpandedMeanings((current) => {
+                            const next = new Set(current);
+                            if (next.has(candidate.term)) next.delete(candidate.term);
+                            else next.add(candidate.term);
+                            return next;
+                          });
+                        }}
+                      >
+                        Confirm meaning for {candidate.term}
+                      </button>
+                    )}
+                    {confirmedMeanings.has(candidate.term) && (
+                      <span className="meaning-confirmed" role="status">
+                        Meaning confirmed
+                      </span>
+                    )}
+                    {needsConfirmation && expanded && (
+                      <fieldset
+                        className="meaning-options"
+                        id={`meaning-options-${candidate.term}`}
+                      >
+                        <legend>Which meaning matches your intended context?</legend>
+                        {compatibleSenses.map((sense) => (
+                          <label key={sense.senseId}>
+                            <input
+                              type="radio"
+                              name={`sense-${candidate.term}`}
+                              checked={selectedSenseIds[candidate.term] === sense.senseId}
+                              onChange={() => {
+                                setSelectedSenseIds((current) => ({
+                                  ...current,
+                                  [candidate.term]: sense.senseId,
+                                }));
+                              }}
+                            />
+                            <span>{sense.definition}</span>
+                          </label>
+                        ))}
+                        <button
+                          type="button"
+                          className="secondary-action"
+                          disabled={!selectedSenseIds[candidate.term]}
+                          onClick={() => {
+                            confirmSense(candidate);
+                          }}
+                        >
+                          Use selected meaning for {candidate.term}
+                        </button>
+                      </fieldset>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
             <div className="review-actions">
               <button
@@ -466,7 +554,7 @@ export function CaptureWorkspace() {
               <button
                 type="button"
                 className="primary-action"
-                disabled={selected.size < 4}
+                disabled={selected.size < 4 || unresolvedSelectedCount > 0}
                 onClick={() => {
                   setTraining(true);
                 }}
@@ -477,6 +565,12 @@ export function CaptureWorkspace() {
             {selected.size < 4 && (
               <p className="privacy-note" role="status">
                 Select at least 4 words so each question can have four useful alternatives.
+              </p>
+            )}
+            {unresolvedSelectedCount > 0 && (
+              <p className="privacy-note" role="status">
+                Confirm the meaning of {unresolvedSelectedCount} selected ambiguous{" "}
+                {unresolvedSelectedCount === 1 ? "word" : "words"} before training.
               </p>
             )}
             <p className="privacy-note">
