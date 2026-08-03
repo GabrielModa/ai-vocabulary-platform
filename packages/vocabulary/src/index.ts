@@ -2,6 +2,7 @@ export * from "./candidate-pipeline.js";
 export * from "./collection.js";
 export * from "./challenges.js";
 export * from "./content.js";
+export * from "./learning-artifact.js";
 export * from "./model.js";
 export * from "./oewn.js";
 export * from "./photo-ingestion.js";
