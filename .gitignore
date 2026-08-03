@@ -40,6 +40,9 @@ test-results/
 /services/image-worker/generated/
 /services/image-worker/*.png
 
+# Downloaded lexical datasets and generated local indexes
+/data/oewn/
+
 # Python bytecode and local tooling
 __pycache__/
 *.py[cod]

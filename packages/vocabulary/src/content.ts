@@ -9,6 +9,7 @@ export const validationStatusSchema = z.enum(["pending", "provisional", "verifie
 export const provenanceSchema = z
   .object({
     provider: identifier,
+    sourceVersion: identifier.optional(),
     sourceId: identifier.optional(),
     sourceUrl: z.url().optional(),
     license: optionalSourceText,

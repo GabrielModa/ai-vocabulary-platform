@@ -44,3 +44,7 @@ Lexical facts, pronunciation, examples, CEFR classifications, exercises, and ima
 domain ports. A provider result remains `unknown` until its consumer validates the matching strict
 schema. Licensed originals and generated adaptations are stored separately so attribution is never
 silently transferred to modified content.
+
+Open English WordNet integration uses the official versioned JSON release to build a local lookup
+index. Runtime vocabulary lookup does not scrape HTML or require network access. OEWN identifiers,
+release URL, CC BY 4.0 license, and contributor attribution remain attached to every imported sense.
