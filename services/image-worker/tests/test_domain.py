@@ -37,7 +37,12 @@ class DomainTest(unittest.TestCase):
 
     def test_accepts_bounded_fields_and_builds_controlled_prompt(self):
         request = VocabularyImageRequest.from_unknown(self.request())
-        self.assertIn("no written words", request.controlled_prompt())
+        prompt = request.controlled_prompt()
+        self.assertIn("single uncluttered educational drawing", prompt)
+        self.assertIn("not a photograph", prompt)
+        self.assertIn("one central observable subject or action", prompt)
+        self.assertIn("do not show or spell the target word", prompt)
+        self.assertIn("supporting memory clue", prompt)
 
     def test_rejects_raw_prompt_and_invalid_level(self):
         raw = {**self.request(), "prompt": "raw"}

@@ -32,13 +32,16 @@ export class SafeVocabularyImageError extends Error {
 
 export function buildSafeVocabularyImagePrompt(input: VocabularyImageRequest): string {
   return [
-    "Create one friendly educational illustration for an English vocabulary exercise.",
+    "Create a single uncluttered educational drawing, not a photograph, for an English vocabulary exercise.",
     `Target concept: ${input.term}.`,
     `Meaning: ${input.meaning}.`,
     `Scene context: ${input.context}.`,
     `Learner level: ${input.level}.`,
-    "Show a clear everyday scene with no written words, letters, captions, logos, brands, celebrities, frightening imagery, weapons, injuries, sexual content, or age-inappropriate content.",
-    "Use a clean colorful editorial illustration style and make the target concept visually central.",
+    "Use one central observable subject or action, a strong silhouette, minimal background detail, and a clear everyday composition that is easy to understand at a glance.",
+    "For a relational or abstract concept, provide a supporting memory clue without pretending the image uniquely proves the answer.",
+    "Use a clean colorful flat editorial illustration style; avoid photorealism, collages, decorative filler, unrelated people, or unrelated locations.",
+    "Use no written words, letters, captions, logos, or brands, and do not show or spell the target word.",
+    "Exclude celebrities, frightening imagery, weapons, injuries, sexual content, and age-inappropriate content.",
   ].join(" ");
 }
 

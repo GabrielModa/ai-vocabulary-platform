@@ -14,8 +14,13 @@ const request = {
 
 describe("safe vocabulary image generation", () => {
   it("builds a controlled prompt without exposing a raw user image prompt", () => {
-    expect(buildSafeVocabularyImagePrompt(request)).toContain("no written words");
-    expect(buildSafeVocabularyImagePrompt(request)).toContain("Target concept: goalkeeper");
+    const prompt = buildSafeVocabularyImagePrompt(request);
+    expect(prompt).toContain("single uncluttered educational drawing");
+    expect(prompt).toContain("not a photograph");
+    expect(prompt).toContain("one central observable subject or action");
+    expect(prompt).toContain("do not show or spell the target word");
+    expect(prompt).toContain("supporting memory clue");
+    expect(prompt).toContain("Target concept: goalkeeper");
   });
 
   it("accepts only safety-checked image output", async () => {

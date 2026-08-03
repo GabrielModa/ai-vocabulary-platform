@@ -60,3 +60,12 @@ keeps the generated meaning provisional and requires an explicit learner choice 
 Definitions remain collapsed during ordinary review. A chosen OEWN sense replaces the provisional
 meaning and carries its sense ID and provenance into the training candidate. Unselected ambiguous
 items do not block the session.
+
+## Pedagogical visual composition
+
+Local images are supporting memory cues, not independent proof of an answer. The controlled prompt
+requests one uncluttered educational drawing with a central observable subject or action, minimal
+background detail, and no written target word. It rejects photographic composition, collages, and
+unrelated decorative scenes. Concrete concepts should be easy to infer at a glance; relational or
+abstract concepts may provide context but must not be presented as visually unambiguous when they
+are not.
