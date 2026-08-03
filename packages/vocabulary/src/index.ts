@@ -1,5 +1,6 @@
 export * from "./collection.js";
 export * from "./challenges.js";
+export * from "./content.js";
 export * from "./model.js";
 export * from "./photo-ingestion.js";
 export * from "./repository.js";

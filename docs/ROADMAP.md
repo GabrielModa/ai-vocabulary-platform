@@ -36,6 +36,23 @@ For a topic collection, the same approved vocabulary powers the complete game ec
 image challenges, audio challenges, dynamic sentences, explanations, contextual examples, reverse
 recall, typing, speaking, mini-dialogues, stories, boss challenges, and spaced review.
 
+## Current execution sequence
+
+The proven local-image slice changes implementation risk, not the product destination. Continue in
+this dependency order:
+
+1. Keep local image generation operational and bounded; defer semantic image scoring.
+2. Establish hybrid content, provenance, sense, and provider contracts.
+3. Integrate one licensed lexical source at a time and retain unavailable facts as absent.
+4. Generate and deterministically validate exercises from identified lexical senses.
+5. Move session rules out of the learner UI and add resumable local persistence.
+6. Complete Study/Test, navigation, feedback, error practice, audio, and reports.
+7. Add mastery and versioned spaced review only after attempts are durable.
+8. Add confirmed photo extraction after lexical verification is available.
+
+This order avoids building semantic validators on provisional model output and avoids adding more
+business rules to React components that will later be replaced by domain services.
+
 ## Approved initial batch proposal
 
 The first 15 implementation tasks are indexed in [`tasks/README.md`](../tasks/README.md). The batch
