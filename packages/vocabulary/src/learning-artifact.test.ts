@@ -83,7 +83,7 @@ describe("sense-bound learning artifacts", () => {
       candidateId: candidate.candidateId,
       displayForm: candidate.displayForm,
       normalizedLemma: candidate.normalizedLemma,
-      proposedPartOfSpeech: candidate.proposedPartOfSpeech,
+      proposedPartOfSpeech: "noun",
       lexicalStatus: "ambiguous",
       availableSenses: candidate.availableSenses,
       selectionReasons: candidate.selectionReasons,
