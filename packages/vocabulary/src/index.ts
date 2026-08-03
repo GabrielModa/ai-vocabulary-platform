@@ -1,4 +1,5 @@
 export * from "./candidate-pipeline.js";
+export * from "./candidate-ranking.js";
 export * from "./collection.js";
 export * from "./challenges.js";
 export * from "./content.js";
