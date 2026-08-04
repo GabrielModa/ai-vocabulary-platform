@@ -5,6 +5,7 @@ export * from "./challenges.js";
 export * from "./content.js";
 export * from "./distractor-selection.js";
 export * from "./exercise-composer.js";
+export * from "./exercise-validator.js";
 export * from "./frequency.js";
 export * from "./learning-artifact.js";
 export * from "./model.js";

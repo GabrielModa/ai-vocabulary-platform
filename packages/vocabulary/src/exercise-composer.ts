@@ -74,7 +74,11 @@ function failure(
   });
 }
 
-function deterministicExerciseId(candidateId: string, senseId: string, exampleId: string): string {
+export function verifiedExerciseId(
+  candidateId: string,
+  senseId: string,
+  exampleId: string,
+): string {
   return [
     "exercise",
     encodeURIComponent(candidateId),
@@ -157,7 +161,7 @@ export function composeVerifiedExercise(
 
     return Object.freeze({
       ok: true,
-      exerciseId: deterministicExerciseId(
+      exerciseId: verifiedExerciseId(
         input.answer.candidate.candidateId,
         selectedSense.senseId,
         example.id,
