@@ -35,6 +35,7 @@ describe("PostgreSQL migration foundation", () => {
         "public.platform_idempotency",
         "public.platform_inbox",
         "public.platform_outbox",
+        "public.study_session_owners",
         "public.study_session_snapshots",
       ]);
     },

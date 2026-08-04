@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import type { PersistedStudySessionSnapshot } from "./study-session-types.js";
 import {
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -84,5 +85,23 @@ export const studySessionSnapshots = pgTable(
     ),
     check("study_session_snapshots_exercises_nonempty", sql`cardinality(${table.exerciseIds}) > 0`),
     index("study_session_snapshots_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const studySessionOwners = pgTable(
+  "study_session_owners",
+  {
+    subjectId: text("subject_id").notNull(),
+    sessionId: text("session_id").notNull(),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.subjectId, table.sessionId] }),
+    foreignKey({
+      columns: [table.sessionId],
+      foreignColumns: [studySessionSnapshots.sessionId],
+      name: "study_session_owners_session_fk",
+    }).onDelete("cascade"),
+    index("study_session_owners_subject_idx").on(table.subjectId),
   ],
 );

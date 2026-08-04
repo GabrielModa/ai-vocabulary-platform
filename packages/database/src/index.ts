@@ -21,3 +21,7 @@ export type {
   PersistedStudySessionExercise,
   PersistedStudySessionSnapshot,
 } from "./study-session-types.js";
+export {
+  createStudySessionOwnershipRepository,
+  type StudySessionOwnershipRepository,
+} from "./study-session-ownership-repository.js";
