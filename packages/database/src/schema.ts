@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { PersistedStudySessionSnapshot } from "./study-session-types.js";
 import {
   check,
   index,
@@ -60,5 +61,28 @@ export const platformIdempotency = pgTable(
       sql`${table.status} in ('started', 'completed', 'failed')`,
     ),
     index("platform_idempotency_expiry_idx").on(table.expiresAt),
+  ],
+);
+
+export const studySessionSnapshots = pgTable(
+  "study_session_snapshots",
+  {
+    sessionId: text("session_id").primaryKey(),
+    snapshotVersion: text("snapshot_version").notNull(),
+    title: text().notNull(),
+    level: text().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+    }).notNull(),
+    exerciseIds: text("exercise_ids").array().notNull(),
+    snapshot: jsonb().$type<PersistedStudySessionSnapshot>().notNull(),
+  },
+  (table) => [
+    check(
+      "study_session_snapshots_version_allowed",
+      sql`${table.snapshotVersion} = 'study-session-snapshot-v1'`,
+    ),
+    check("study_session_snapshots_exercises_nonempty", sql`cardinality(${table.exerciseIds}) > 0`),
+    index("study_session_snapshots_created_at_idx").on(table.createdAt),
   ],
 );

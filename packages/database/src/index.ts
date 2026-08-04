@@ -11,3 +11,13 @@ export {
   type DatabaseTransaction,
   type TransactionPort,
 } from "./transaction.js";
+
+export {
+  createStudySessionSnapshotRepository,
+  type SaveStudySessionSnapshotResult,
+  type StudySessionSnapshotRepository,
+} from "./study-session-repository.js";
+export type {
+  PersistedStudySessionExercise,
+  PersistedStudySessionSnapshot,
+} from "./study-session-types.js";
