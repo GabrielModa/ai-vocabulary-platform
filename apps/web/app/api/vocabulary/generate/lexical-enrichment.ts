@@ -11,6 +11,7 @@ import {
   type CandidateScoreContribution,
   type ExampleContent,
   type ExampleProvider,
+  type ExercisePipelineOutcome,
   type FrequencyContent,
   type FrequencyProvider,
   type LearningCandidate,
@@ -19,6 +20,7 @@ import {
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { definitionRecallChallenge, type ExerciseKind } from "../../../sense-bound-exercise";
+import { runCandidateExercisePipelines } from "./pipeline-adapter";
 
 export type LexicalLookup = CandidateLexicalLookup;
 export type FrequencyLookup = FrequencyProvider;
@@ -43,6 +45,7 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly lexicalProvenance?: LexicalContent["provenance"];
   readonly lexicalSenses?: readonly LexicalContent[];
   readonly exerciseKind?: ExerciseKind;
+  readonly exercisePipelineOutcome?: ExercisePipelineOutcome;
 };
 
 export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candidates"> {
@@ -154,6 +157,7 @@ function adaptCandidate(
   },
   frequency: FrequencyContent | undefined,
   examples: readonly ExampleContent[],
+  exercisePipelineOutcome: ExercisePipelineOutcome | undefined,
 ): EnrichedCandidate {
   const firstExample = examples[0];
   const base = {
@@ -179,6 +183,7 @@ function adaptCandidate(
           frequencyProvenance: frequency.provenance,
         }
       : {}),
+    ...(exercisePipelineOutcome ? { exercisePipelineOutcome } : {}),
   };
 
   if (candidate.selectedSense) {
@@ -285,6 +290,21 @@ export async function enrichVocabularySet(
     }),
   );
 
+  const pipelineOutcomes = runCandidateExercisePipelines(
+    ranking.ranked.map((ranked) => {
+      const frequency = frequencyByCandidateId.get(ranked.candidate.candidateId);
+
+      return {
+        candidate: ranked.candidate,
+        ...(frequency ? { frequency } : {}),
+        examples: examplesByCandidateId.get(ranked.candidate.candidateId) ?? [],
+      };
+    }),
+  );
+  const outcomeByCandidateId = new Map(
+    pipelineOutcomes.map((result) => [result.candidateId, result.outcome]),
+  );
+
   const candidates = ranking.ranked.flatMap((ranked) => {
     const key = generatedCandidateKey({
       term: ranked.candidate.normalizedLemma,
@@ -301,6 +321,7 @@ export async function enrichVocabularySet(
             ranked,
             frequencyByCandidateId.get(ranked.candidate.candidateId),
             examplesByCandidateId.get(ranked.candidate.candidateId) ?? [],
+            outcomeByCandidateId.get(ranked.candidate.candidateId),
           ),
         ]
       : [];

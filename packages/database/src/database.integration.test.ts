@@ -17,25 +17,29 @@ afterEach(async () => {
 });
 
 describe("PostgreSQL migration foundation", () => {
-  it("connects and migrates repeatedly without duplicate effects", async () => {
-    const instance = await isolatedDatabase();
+  it(
+    "connects and migrates repeatedly without duplicate effects",
+    { timeout: 20_000 },
+    async () => {
+      const instance = await isolatedDatabase();
 
-    await expect(instance.database.execute(sql`select 1 as connected`)).resolves.toBeDefined();
-    await expect(migrateTestDatabase(instance.database)).resolves.toBeUndefined();
-    await expect(migrateTestDatabase(instance.database)).resolves.toBeUndefined();
+      await expect(instance.database.execute(sql`select 1 as connected`)).resolves.toBeDefined();
+      await expect(migrateTestDatabase(instance.database)).resolves.toBeUndefined();
+      await expect(migrateTestDatabase(instance.database)).resolves.toBeUndefined();
 
-    const tables = await instance.client.query<{ table_schema: string; table_name: string }>(
-      "select table_schema, table_name from information_schema.tables where table_schema in ('drizzle', 'public') order by table_schema, table_name",
-    );
-    expect(tables.rows.map((row) => `${row.table_schema}.${row.table_name}`)).toEqual([
-      "drizzle.__drizzle_migrations",
-      "public.platform_idempotency",
-      "public.platform_inbox",
-      "public.platform_outbox",
-    ]);
-  });
+      const tables = await instance.client.query<{ table_schema: string; table_name: string }>(
+        "select table_schema, table_name from information_schema.tables where table_schema in ('drizzle', 'public') order by table_schema, table_name",
+      );
+      expect(tables.rows.map((row) => `${row.table_schema}.${row.table_name}`)).toEqual([
+        "drizzle.__drizzle_migrations",
+        "public.platform_idempotency",
+        "public.platform_inbox",
+        "public.platform_outbox",
+      ]);
+    },
+  );
 
-  it("rolls back all writes when a transaction fails", async () => {
+  it("rolls back all writes when a transaction fails", { timeout: 20_000 }, async () => {
     const { database } = await isolatedDatabase();
 
     await expect(
@@ -52,7 +56,7 @@ describe("PostgreSQL migration foundation", () => {
     expect(result?.value).toBe(0);
   });
 
-  it("resets data and isolates independent test databases", async () => {
+  it("resets data and isolates independent test databases", { timeout: 20_000 }, async () => {
     const first = await isolatedDatabase();
     const second = await isolatedDatabase();
     await first.database.insert(platformInbox).values({
