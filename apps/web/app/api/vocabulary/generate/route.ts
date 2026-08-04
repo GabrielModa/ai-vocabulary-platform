@@ -6,6 +6,7 @@ import {
   loadLocalFrequencyLookup,
   loadLocalLexicalLookup,
 } from "./lexical-enrichment";
+import { serializeVocabularyGenerationResponse } from "./response-contract";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -25,9 +26,13 @@ export async function POST(request: Request) {
       loadLocalFrequencyLookup(),
       loadLocalExampleLookup(),
     ]);
-    return NextResponse.json(
-      await enrichVocabularySet(generated, lexicalLookup, frequencyLookup, exampleLookup),
+    const enriched = await enrichVocabularySet(
+      generated,
+      lexicalLookup,
+      frequencyLookup,
+      exampleLookup,
     );
+    return NextResponse.json(serializeVocabularyGenerationResponse(enriched));
   } catch (error) {
     if (error instanceof OllamaVocabularyError && error.code === "UNAVAILABLE")
       return NextResponse.json({ code: "OLLAMA_UNAVAILABLE" }, { status: 503 });

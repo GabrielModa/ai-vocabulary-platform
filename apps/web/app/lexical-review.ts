@@ -23,6 +23,48 @@ export interface LexicalSense {
   readonly provenance: ContentProvenance;
 }
 
+export interface PublishedReviewExercise {
+  readonly exerciseId: string;
+  readonly exerciseKind: "cloze";
+  readonly candidateId: string;
+  readonly senseId: string;
+  readonly exampleId: string;
+  readonly sourceSentence: string;
+  readonly gapSentence: string;
+  readonly answer: string;
+  readonly options: readonly string[];
+  readonly provenance: {
+    readonly exampleProvider: string;
+    readonly exampleSourceRecordId: string;
+    readonly lexicalProvider: string;
+    readonly lexicalSourceRecordId: string;
+  };
+}
+
+export type ReviewExercisePipelineOutcome =
+  | {
+      readonly outcome: "publish";
+      readonly pipeline: "verified-exercise-pipeline-v1";
+      readonly semanticUniqueness: "not-proven";
+      readonly exercise: PublishedReviewExercise;
+    }
+  | {
+      readonly outcome: "request-ai-fallback";
+      readonly pipeline: "verified-exercise-pipeline-v1";
+      readonly semanticUniqueness: "not-proven";
+      readonly operation: "rewrite-context-only";
+      readonly requestId: string;
+      readonly triggeringReasons: readonly string[];
+    }
+  | {
+      readonly outcome: "reject";
+      readonly pipeline: "verified-exercise-pipeline-v1";
+      readonly semanticUniqueness: "not-proven";
+      readonly stage: "composition" | "structural-policy";
+      readonly compositionCode?: string;
+      readonly structuralReasons: readonly string[];
+    };
+
 export interface ReviewCandidate {
   readonly term: string;
   readonly meaning: string;
@@ -35,6 +77,7 @@ export interface ReviewCandidate {
   readonly lexicalProvenance?: ContentProvenance;
   readonly lexicalSenses?: readonly LexicalSense[];
   readonly exerciseKind?: ExerciseKind;
+  readonly exercisePipelineOutcome?: ReviewExercisePipelineOutcome;
 }
 
 export function compatibleLexicalSenses(candidate: ReviewCandidate): readonly LexicalSense[] {
@@ -103,4 +146,32 @@ export function countUnresolvedSelectedCandidates(
   return candidates.filter(
     (candidate) => selected.has(candidate.term) && requiresSenseConfirmation(candidate),
   ).length;
+}
+
+export function publishedExercise(candidate: ReviewCandidate): PublishedReviewExercise | undefined {
+  return candidate.exercisePipelineOutcome?.outcome === "publish"
+    ? candidate.exercisePipelineOutcome.exercise
+    : undefined;
+}
+
+export function candidateSentenceWithGap(candidate: ReviewCandidate): string {
+  const published = publishedExercise(candidate);
+  if (published) return published.gapSentence;
+  if (candidate.challenge.includes("___")) return candidate.challenge;
+  const escapedTerm = candidate.term.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const termPattern = new RegExp(`\\b${escapedTerm}\\b`, "iu");
+  return termPattern.test(candidate.example)
+    ? candidate.example.replace(termPattern, "___")
+    : `${candidate.challenge} ___`;
+}
+
+export function candidateAnswerOptions(
+  current: ReviewCandidate,
+  candidates: readonly ReviewCandidate[],
+): readonly string[] {
+  return publishedExercise(current)?.options ?? buildAnswerOptions(current, candidates);
+}
+
+export function candidateCorrectAnswer(candidate: ReviewCandidate): string {
+  return publishedExercise(candidate)?.answer ?? candidate.term;
 }

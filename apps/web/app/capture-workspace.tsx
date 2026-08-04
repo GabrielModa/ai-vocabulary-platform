@@ -3,7 +3,9 @@
 import Image from "next/image";
 import { useEffect, useState, type SyntheticEvent } from "react";
 import {
-  buildAnswerOptions,
+  candidateAnswerOptions,
+  candidateCorrectAnswer,
+  candidateSentenceWithGap,
   compatibleLexicalSenses,
   countUnresolvedSelectedCandidates,
   requiresSenseConfirmation,
@@ -154,12 +156,7 @@ function formText(form: FormData, name: string): string {
 }
 
 function sentenceWithGap(candidate: Candidate): string {
-  if (candidate.challenge.includes("___")) return candidate.challenge;
-  const escapedTerm = candidate.term.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  const termPattern = new RegExp(`\\b${escapedTerm}\\b`, "iu");
-  return termPattern.test(candidate.example)
-    ? candidate.example.replace(termPattern, "___")
-    : `${candidate.challenge} ___`;
+  return candidateSentenceWithGap(candidate);
 }
 
 function speak(text: string) {
@@ -256,14 +253,14 @@ export function CaptureWorkspace() {
   const unresolvedSelectedCount = countUnresolvedSelectedCandidates(candidates, selected);
   const currentCandidate = trainingCandidates[questionIndex];
   const optionPool = currentCandidate
-    ? buildAnswerOptions(currentCandidate, trainingCandidates)
+    ? candidateAnswerOptions(currentCandidate, trainingCandidates)
     : [];
   const optionOffset = optionPool.length === 0 ? 0 : questionIndex % optionPool.length;
   const answerOptions = [...optionPool.slice(optionOffset), ...optionPool.slice(0, optionOffset)];
 
   function checkAnswer() {
     if (!chosenTerm || !currentCandidate || feedback) return;
-    const correct = chosenTerm === currentCandidate.term;
+    const correct = chosenTerm === candidateCorrectAnswer(currentCandidate);
     setFeedback(correct ? "correct" : "incorrect");
     if (correct) setScore((current) => current + 1);
     setAttempts((current) => [...current, { term: currentCandidate.term, chosenTerm, correct }]);

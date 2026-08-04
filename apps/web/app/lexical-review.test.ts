@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAnswerOptions,
+  candidateAnswerOptions,
+  candidateCorrectAnswer,
+  candidateSentenceWithGap,
   compatibleLexicalSenses,
   countUnresolvedSelectedCandidates,
   resolveCandidateSense,
@@ -106,5 +109,66 @@ describe("lexical review", () => {
       countUnresolvedSelectedCandidates([candidate, verified], new Set(["pitch", "goal"])),
     ).toBe(1);
     expect(countUnresolvedSelectedCandidates([candidate, verified], new Set(["goal"]))).toBe(0);
+  });
+  it("uses a published exercise as the training source of truth", () => {
+    const candidate: ReviewCandidate = {
+      term: "sample",
+      meaning: "try a small amount",
+      type: "verb",
+      example: "Legacy example.",
+      challenge: "Legacy challenge",
+      exercisePipelineOutcome: {
+        outcome: "publish",
+        pipeline: "verified-exercise-pipeline-v1",
+        semanticUniqueness: "not-proven",
+        exercise: {
+          exerciseId: "exercise:sample",
+          exerciseKind: "cloze",
+          candidateId: "candidate:sample:verb",
+          senseId: "sense:sample",
+          exampleId: "example:sample",
+          sourceSentence: "Students sample regional dishes.",
+          gapSentence: "Students ___ regional dishes.",
+          answer: "sample",
+          options: ["sample", "taste", "serve", "cook"],
+          provenance: {
+            exampleProvider: "oewn",
+            exampleSourceRecordId: "example:sample",
+            lexicalProvider: "oewn",
+            lexicalSourceRecordId: "sense:sample",
+          },
+        },
+      },
+    };
+
+    expect(candidateSentenceWithGap(candidate)).toBe("Students ___ regional dishes.");
+    expect(candidateAnswerOptions(candidate, [candidate])).toEqual([
+      "sample",
+      "taste",
+      "serve",
+      "cook",
+    ]);
+    expect(candidateCorrectAnswer(candidate)).toBe("sample");
+  });
+
+  it("does not treat rejection as a published exercise", () => {
+    const candidate: ReviewCandidate = {
+      term: "sample",
+      meaning: "try a small amount",
+      type: "verb",
+      example: "Please sample the food.",
+      challenge: "Try a small amount",
+      exercisePipelineOutcome: {
+        outcome: "reject",
+        pipeline: "verified-exercise-pipeline-v1",
+        semanticUniqueness: "not-proven",
+        stage: "composition",
+        compositionCode: "missing-verified-example",
+        structuralReasons: [],
+      },
+    };
+
+    expect(candidateSentenceWithGap(candidate)).toBe("Please ___ the food.");
+    expect(candidateCorrectAnswer(candidate)).toBe("sample");
   });
 });
