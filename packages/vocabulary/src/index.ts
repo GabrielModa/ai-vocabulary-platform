@@ -12,6 +12,7 @@ export * from "./photo-ingestion.js";
 export * from "./providers.js";
 export * from "./repository.js";
 export * from "./review.js";
+export * from "./sense-bound-cloze.js";
 export * from "./session.js";
 export * from "./topic-generation.js";
 export * from "./typed-input.js";
