@@ -204,6 +204,9 @@ importers:
       '@vocabulary/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@vocabulary/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@vocabulary/config':
         specifier: workspace:*
         version: link:../../packages/config
