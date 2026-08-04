@@ -210,6 +210,9 @@ importers:
       '@vocabulary/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@vocabulary/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@vocabulary/domain-vocabulary':
         specifier: workspace:*
         version: link:../../packages/vocabulary

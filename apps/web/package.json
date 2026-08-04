@@ -16,6 +16,7 @@
     "@vocabulary/ai": "workspace:*",
     "@vocabulary/auth": "workspace:*",
     "@vocabulary/config": "workspace:*",
+    "@vocabulary/database": "workspace:*",
     "@vocabulary/domain-vocabulary": "workspace:*",
     "next": "16.2.12",
     "react": "19.2.8",
