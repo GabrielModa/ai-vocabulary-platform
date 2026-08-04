@@ -20,6 +20,7 @@ export * from "./repository.js";
 export * from "./review.js";
 export * from "./sense-bound-cloze.js";
 export * from "./session.js";
+export * from "./study-session-snapshot.js";
 export * from "./topic-generation.js";
 export * from "./typed-input.js";
 export * from "./workflow.js";
