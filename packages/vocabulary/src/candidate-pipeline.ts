@@ -13,7 +13,7 @@ export interface SelectedLexicalSense {
   readonly definition: string;
   readonly partOfSpeech: string;
   readonly provenance: ContentProvenance;
-  readonly confirmedBy: "unique-provider-match" | "learner-selection";
+  readonly confirmedBy: "unique-provider-match" | "contextual-ai-selection" | "learner-selection";
 }
 
 export interface LearningCandidate {
