@@ -30,6 +30,21 @@ const modeCopy: Record<Mode, { title: string; description: string }> = {
 };
 type Candidate = ReviewCandidate;
 
+interface GenerationEnvelope {
+  readonly generation: {
+    readonly title: string;
+    readonly candidates: readonly Candidate[];
+  };
+  readonly draft: {
+    readonly draftId: string;
+    readonly expiresAt: string;
+  };
+}
+
+interface CreatedStudySession {
+  readonly sessionId: string;
+}
+
 interface Attempt {
   readonly term: string;
   readonly chosenTerm: string;
@@ -197,8 +212,12 @@ export function CaptureWorkspace() {
   const [selectedSenseIds, setSelectedSenseIds] = useState<Record<string, string>>({});
   const [confirmedMeanings, setConfirmedMeanings] = useState(() => new Set<string>());
   const [loading, setLoading] = useState(false);
+  const [creatingSession, setCreatingSession] = useState(false);
   const [error, setError] = useState<string>();
   const [level, setLevel] = useState("B1");
+  const [draftId, setDraftId] = useState<string>();
+  const [draftExpiresAt, setDraftExpiresAt] = useState<string>();
+  const [studySessionId, setStudySessionId] = useState<string>();
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (mode === "photo") {
@@ -221,16 +240,19 @@ export function CaptureWorkspace() {
         body: JSON.stringify({ topic, requestedCount, level: requestedLevel }),
       });
       if (!response.ok) throw new Error("generation failed");
-      const result = (await response.json()) as { title: string; candidates: Candidate[] };
-      setCandidates(result.candidates);
-      setTitle(result.title);
-      setSelected(new Set(result.candidates.map(({ term }) => term)));
+      const result = (await response.json()) as GenerationEnvelope;
+      setCandidates(result.generation.candidates);
+      setTitle(result.generation.title);
+      setDraftId(result.draft.draftId);
+      setDraftExpiresAt(result.draft.expiresAt);
+      setStudySessionId(undefined);
+      setSelected(new Set(result.generation.candidates.map(({ term }) => term)));
       setExpandedMeanings(new Set());
       setSelectedSenseIds({});
       setConfirmedMeanings(new Set());
       setLevel(requestedLevel);
       setReviewing(true);
-      for (const candidate of result.candidates
+      for (const candidate of result.generation.candidates
         .filter((item) => !requiresSenseConfirmation(item))
         .slice(0, 4))
         void enqueueImage(candidate, requestedLevel);
@@ -240,6 +262,56 @@ export function CaptureWorkspace() {
       setLoading(false);
     }
   }
+  async function createStudySession() {
+    if (!draftId || selected.size < 4 || unresolvedSelectedCount > 0) return;
+
+    const selectedCandidateIds = candidates
+      .filter((candidate) => selected.has(candidate.term))
+      .map((candidate) => candidate.candidateId)
+      .filter((candidateId): candidateId is string => Boolean(candidateId));
+
+    if (selectedCandidateIds.length !== selected.size) {
+      setError("This generated set is missing secure candidate references. Generate it again.");
+      return;
+    }
+
+    setCreatingSession(true);
+    setError(undefined);
+    try {
+      const response = await fetch("/api/study-sessions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          draftId,
+          title,
+          level,
+          selectedCandidateIds,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError("Sign in again before starting this study session.");
+        } else if (response.status === 404) {
+          setError("This generated set expired. Generate a new set to continue.");
+        } else if (response.status === 400) {
+          setError("Review your selected words and try creating the session again.");
+        } else {
+          setError("The study session could not be created. Try again.");
+        }
+        return;
+      }
+
+      const session = (await response.json()) as CreatedStudySession;
+      setStudySessionId(session.sessionId);
+      setTraining(true);
+    } catch {
+      setError("The study session service is unavailable. Try again.");
+    } finally {
+      setCreatingSession(false);
+    }
+  }
+
   function toggle(term: string) {
     setSelected((current) => {
       const next = new Set(current);
@@ -295,6 +367,9 @@ export function CaptureWorkspace() {
     setExpandedMeanings(new Set());
     setSelectedSenseIds({});
     setConfirmedMeanings(new Set());
+    setDraftId(undefined);
+    setDraftExpiresAt(undefined);
+    setStudySessionId(undefined);
   }
 
   function confirmSense(candidate: Candidate) {
@@ -553,14 +628,27 @@ export function CaptureWorkspace() {
               <button
                 type="button"
                 className="primary-action"
-                disabled={selected.size < 4 || unresolvedSelectedCount > 0}
+                disabled={
+                  selected.size < 4 || unresolvedSelectedCount > 0 || creatingSession || !draftId
+                }
                 onClick={() => {
-                  setTraining(true);
+                  void createStudySession();
                 }}
               >
-                I’m ready — start training <span aria-hidden="true">→</span>
+                {creatingSession ? "Creating study session…" : "I’m ready — start training"}{" "}
+                <span aria-hidden="true">→</span>
               </button>
             </div>
+            {error && (
+              <p role="alert" className="error-message">
+                {error}
+              </p>
+            )}
+            {draftExpiresAt && (
+              <p className="privacy-note">
+                Secure draft available until {new Date(draftExpiresAt).toLocaleTimeString()}.
+              </p>
+            )}
             {selected.size < 4 && (
               <p className="privacy-note" role="status">
                 Select at least 4 words so each question can have four useful alternatives.
@@ -584,6 +672,9 @@ export function CaptureWorkspace() {
             </div>
             {!sessionComplete && currentCandidate ? (
               <div className="training-panel">
+                {studySessionId && (
+                  <p className="privacy-note">Study session {studySessionId} created securely.</p>
+                )}
                 <p className="progress-label">
                   Question {questionIndex + 1} of {trainingCandidates.length}
                 </p>

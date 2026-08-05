@@ -66,6 +66,7 @@ export type ReviewExercisePipelineOutcome =
     };
 
 export interface ReviewCandidate {
+  readonly candidateId?: string;
   readonly term: string;
   readonly meaning: string;
   readonly type: string;

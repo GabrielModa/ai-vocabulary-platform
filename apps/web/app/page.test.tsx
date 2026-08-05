@@ -8,6 +8,7 @@ const generatedSet = {
   title: "Your football word set",
   candidates: [
     {
+      candidateId: "candidate:pitch",
       term: "pitch",
       meaning: "The playing surface.",
       type: "noun",
@@ -15,6 +16,7 @@ const generatedSet = {
       challenge: "The players walked onto the ___ before the match.",
     },
     {
+      candidateId: "candidate:pass",
       term: "pass",
       meaning: "To send the ball to a teammate.",
       type: "verb",
@@ -22,6 +24,7 @@ const generatedSet = {
       challenge: "Please ___ the ball.",
     },
     {
+      candidateId: "candidate:close-match",
       term: "close match",
       meaning: "A game with a small score difference.",
       type: "collocation",
@@ -29,6 +32,7 @@ const generatedSet = {
       challenge: "The final was a ___.",
     },
     {
+      candidateId: "candidate:goalkeeper",
       term: "goalkeeper",
       meaning: "The player who protects the goal.",
       type: "noun",
@@ -37,6 +41,58 @@ const generatedSet = {
     },
   ],
 };
+
+function responseJson(value: unknown, status = 200): Response {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function generationEnvelope(generation: typeof generatedSet, draftId = "draft-1") {
+  return {
+    generation,
+    draft: {
+      draftId,
+      expiresAt: "2027-01-01T00:00:00.000Z",
+    },
+  };
+}
+
+function fetchForGeneration(
+  generation: typeof generatedSet,
+  draftId = "draft-1",
+  sessionId = "study-session-1",
+) {
+  return vi.fn((input: RequestInfo | URL) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (url.endsWith("/api/vocabulary/generate")) {
+      return Promise.resolve(responseJson(generationEnvelope(generation, draftId)));
+    }
+
+    if (url.endsWith("/api/study-sessions")) {
+      return Promise.resolve(
+        responseJson(
+          {
+            sessionId,
+            title: generation.title,
+            level: "B1",
+            exercises: [],
+          },
+          201,
+        ),
+      );
+    }
+
+    if (url.includes("/api/vocabulary/image")) {
+      return Promise.resolve(responseJson({ status: "unavailable" }));
+    }
+
+    return Promise.resolve(responseJson({ code: "NOT_FOUND" }, 404));
+  });
+}
 
 const ambiguousGeneratedSet = {
   ...generatedSet,
@@ -85,15 +141,7 @@ const ambiguousGeneratedSet = {
 };
 
 beforeEach(() => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(generatedSet), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    ),
-  );
+  vi.stubGlobal("fetch", fetchForGeneration(generatedSet));
 });
 
 afterEach(() => {
@@ -128,15 +176,41 @@ describe("VocabularyPage", () => {
     expect(screen.queryByText("The pitch is wet.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Listen to pitch" })).toBeInTheDocument();
   });
+
+  it("creates a draft-backed study session before training", async () => {
+    render(<VocabularyPage />);
+    const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!form) throw new Error("missing capture form");
+    fireEvent.submit(form);
+    await screen.findByRole("heading", { level: 2, name: "Your football word set" });
+
+    fireEvent.click(screen.getByRole("button", { name: /start training/u }));
+
+    expect(
+      await screen.findByText("Study session study-session-1 created securely."),
+    ).toBeInTheDocument();
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      "/api/study-sessions",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          draftId: "draft-1",
+          title: "Your football word set",
+          level: "B1",
+          selectedCandidateIds: [
+            "candidate:pitch",
+            "candidate:pass",
+            "candidate:close-match",
+            "candidate:goalkeeper",
+          ],
+        }),
+      }),
+    );
+  });
   it("requires explicit confirmation for an ambiguous selected meaning", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify(ambiguousGeneratedSet), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      ),
+      fetchForGeneration(ambiguousGeneratedSet, "draft-ambiguous", "study-session-ambiguous"),
     );
     render(<VocabularyPage />);
     const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
@@ -156,7 +230,9 @@ describe("VocabularyPage", () => {
     expect(screen.getByText("Meaning confirmed")).toBeInTheDocument();
     fireEvent.click(start);
     expect(
-      screen.getByRole("heading", { name: "Which word matches the verified meaning?" }),
+      await screen.findByRole("heading", {
+        name: "Which word matches the verified meaning?",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Which word matches this meaning.*playing surface used for a sport/u),
@@ -170,7 +246,9 @@ describe("VocabularyPage", () => {
     await screen.findByRole("heading", { level: 2, name: "Your football word set" });
     fireEvent.click(screen.getByRole("button", { name: /start training/u }));
     expect(
-      screen.getByRole("heading", { name: "Which word completes the sentence?" }),
+      await screen.findByRole("heading", {
+        name: "Which word completes the sentence?",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText(/players walked onto the ___ before the match/u)).toBeInTheDocument();
     expect(screen.getAllByRole("radio")).toHaveLength(4);
