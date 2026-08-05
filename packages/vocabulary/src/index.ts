@@ -4,6 +4,7 @@ export * from "./candidate-ranking.js";
 export * from "./collection.js";
 export * from "./challenges.js";
 export * from "./content.js";
+export * from "./contextual-sense-selector.js";
 export * from "./distractor-selection.js";
 export * from "./exercise-composer.js";
 export * from "./exercise-pipeline.js";
