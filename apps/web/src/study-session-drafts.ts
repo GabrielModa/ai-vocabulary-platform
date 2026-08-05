@@ -10,6 +10,7 @@ import type { StudySessionDraftPort } from "../app/api/study-sessions/http";
 import type { EnrichedCandidate } from "../app/api/vocabulary/generate/lexical-enrichment";
 import { runCandidateExercisePipelines } from "../app/api/vocabulary/generate/pipeline-adapter";
 import { publishReviewedDefinitionChoices } from "./reviewed-definition-choice-publication";
+import { chooseReviewedExerciseOutcome } from "./reviewed-exercise-strategy";
 import type { LearningCandidate } from "@vocabulary/domain-vocabulary";
 
 export const GENERATION_DRAFT_VERSION = "vocabulary-generation-draft-v1" as const;
@@ -199,10 +200,10 @@ export function createPersistentStudySessionDrafts(
 
           return Object.freeze({
             candidateId: candidate.candidateId,
-            outcome:
-              legacyOutcome?.outcome === "publish"
-                ? legacyOutcome
-                : (definitionChoiceOutcome ?? legacyOutcome ?? ({ outcome: "reject" } as const)),
+            outcome: chooseReviewedExerciseOutcome({
+              ...(legacyOutcome !== undefined ? { legacyOutcome } : {}),
+              ...(definitionChoiceOutcome !== undefined ? { definitionChoiceOutcome } : {}),
+            }),
           });
         }),
       );
