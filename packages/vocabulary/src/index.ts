@@ -8,6 +8,7 @@ export * from "./contextual-sense-selector.js";
 export * from "./contextual-candidate-resolution.js";
 export * from "./definition-choice-composer.js";
 export * from "./definition-choice-distractor-selector.js";
+export * from "./definition-choice-publisher.js";
 export * from "./distractor-selection.js";
 export * from "./exercise-capability-planner.js";
 export * from "./exercise-composer.js";
