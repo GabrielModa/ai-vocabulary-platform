@@ -76,10 +76,7 @@ describe("authenticated vocabulary generation", () => {
         kind: "anonymous",
         reason: "missing",
       }),
-      drafts: {
-        save,
-        resolveReview: vi.fn(),
-      },
+      drafts: { save },
       generate,
     });
 
@@ -97,6 +94,7 @@ describe("authenticated vocabulary generation", () => {
         saved = input;
         return Promise.resolve({ created: true });
       },
+      resolve: vi.fn(),
       resolveReview: vi.fn(),
     };
     const handler = createAuthenticatedVocabularyGenerationHandler({
@@ -148,7 +146,6 @@ describe("authenticated vocabulary generation", () => {
         save() {
           return Promise.resolve({ created: false });
         },
-        resolveReview: vi.fn(),
       },
       generate: () => Promise.resolve(generated),
       createDraftId: () => "duplicate",
