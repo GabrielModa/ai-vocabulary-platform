@@ -37,6 +37,7 @@ describe("PostgreSQL migration foundation", () => {
         "public.platform_outbox",
         "public.study_session_owners",
         "public.study_session_snapshots",
+        "public.vocabulary_generation_drafts",
       ]);
     },
   );

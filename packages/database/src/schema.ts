@@ -105,3 +105,22 @@ export const studySessionOwners = pgTable(
     index("study_session_owners_subject_idx").on(table.subjectId),
   ],
 );
+
+export const vocabularyGenerationDrafts = pgTable(
+  "vocabulary_generation_drafts",
+  {
+    draftId: text("draft_id").primaryKey(),
+    subjectId: text("subject_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    payload: jsonb().notNull(),
+  },
+  (table) => [
+    check(
+      "vocabulary_generation_drafts_expiry_after_creation",
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+    index("vocabulary_generation_drafts_subject_idx").on(table.subjectId, table.expiresAt),
+    index("vocabulary_generation_drafts_expiry_idx").on(table.expiresAt),
+  ],
+);

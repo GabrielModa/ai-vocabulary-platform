@@ -25,3 +25,8 @@ export {
   createStudySessionOwnershipRepository,
   type StudySessionOwnershipRepository,
 } from "./study-session-ownership-repository.js";
+export {
+  createGenerationDraftRepository,
+  type GenerationDraftRecord,
+  type GenerationDraftRepository,
+} from "./generation-draft-repository.js";

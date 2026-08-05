@@ -20,6 +20,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     database,
     close: async () => client.close(),
     reset: async () => {
+      await database.delete(schema.vocabularyGenerationDrafts);
       await database.delete(schema.studySessionOwners);
       await database.delete(schema.studySessionSnapshots);
       await database.delete(schema.platformOutbox);
