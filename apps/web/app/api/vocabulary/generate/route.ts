@@ -1,9 +1,15 @@
-import { OllamaVocabularyError, OllamaVocabularyGenerator } from "@vocabulary/ai";
+import {
+  localVocabularyRequestSchema,
+  OllamaVocabularyError,
+  OllamaVocabularyGenerator,
+} from "@vocabulary/ai";
+import { OllamaContextualSenseSelector } from "../../../../src/ollama-contextual-sense-selector";
 import {
   getStudySessionRuntime,
   StudySessionRuntimeUnavailableError,
 } from "../../../../src/study-session-runtime-registry";
 import { createAuthenticatedVocabularyGenerationHandler } from "./authenticated-generation";
+import { resolveVocabularySetContextually } from "./contextual-lexical-enrichment";
 import {
   enrichVocabularySet,
   loadLocalExampleLookup,
@@ -12,19 +18,38 @@ import {
 } from "./lexical-enrichment";
 
 async function generate(input: unknown) {
+  const request = localVocabularyRequestSchema.parse(input);
   const generator = new OllamaVocabularyGenerator({
     ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
     ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
   });
 
   const [generated, lexicalLookup, frequencyLookup, exampleLookup] = await Promise.all([
-    generator.generate(input),
+    generator.generate(request),
     loadLocalLexicalLookup(),
     loadLocalFrequencyLookup(),
     loadLocalExampleLookup(),
   ]);
 
-  return enrichVocabularySet(generated, lexicalLookup, frequencyLookup, exampleLookup);
+  const enriched = await enrichVocabularySet(
+    generated,
+    lexicalLookup,
+    frequencyLookup,
+    exampleLookup,
+  );
+  const selector = new OllamaContextualSenseSelector({
+    ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
+    ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
+  });
+
+  return resolveVocabularySetContextually(enriched, {
+    selector,
+    context: {
+      topic: request.topic,
+      learnerLevel: request.level,
+      locale: "en-US",
+    },
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {
