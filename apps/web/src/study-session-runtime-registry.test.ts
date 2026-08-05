@@ -1,5 +1,5 @@
 import type { SessionIdentityPort } from "@vocabulary/auth";
-import type { StudySessionDraftPort } from "../app/api/study-sessions/http";
+import type { PersistentStudySessionDrafts } from "./study-session-drafts";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   configureStudySessionRuntime,
@@ -17,7 +17,10 @@ const identity: SessionIdentityPort<Headers> = {
   },
 };
 
-const drafts: StudySessionDraftPort = {
+const drafts: PersistentStudySessionDrafts = {
+  save() {
+    return Promise.resolve({ created: true });
+  },
   resolve() {
     return Promise.resolve({
       ok: false,

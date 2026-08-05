@@ -1,6 +1,7 @@
 import type { SessionIdentityPort } from "@vocabulary/auth";
 import {
   createDatabaseConnection,
+  createGenerationDraftRepository,
   createStudySessionOwnershipRepository,
   createStudySessionSnapshotRepository,
   type DatabaseConnection,
@@ -9,14 +10,15 @@ import {
   createOwnedStudySessionApplication,
   createStudySessionApplication,
 } from "@vocabulary/domain-vocabulary";
+import { createStudySessionHttpHandlers } from "../app/api/study-sessions/http";
 import {
-  createStudySessionHttpHandlers,
-  type StudySessionDraftPort,
-} from "../app/api/study-sessions/http";
+  createPersistentStudySessionDrafts,
+  type PersistentStudySessionDrafts,
+} from "./study-session-drafts";
 
 export interface StudySessionRuntimeAdapters {
   readonly identity: SessionIdentityPort<Headers>;
-  readonly drafts: StudySessionDraftPort;
+  readonly drafts?: PersistentStudySessionDrafts;
 }
 
 export interface StudySessionRuntimeOptions extends StudySessionRuntimeAdapters {
@@ -25,6 +27,8 @@ export interface StudySessionRuntimeOptions extends StudySessionRuntimeAdapters 
 }
 
 export interface StudySessionRuntime {
+  readonly identity: SessionIdentityPort<Headers>;
+  readonly drafts: PersistentStudySessionDrafts;
   readonly handlers: ReturnType<typeof createStudySessionHttpHandlers>;
   close(): Promise<void>;
 }
@@ -40,7 +44,7 @@ function normalizedDatabaseUrl(value: string): string {
 export function createStudySessionRuntime({
   connection: suppliedConnection,
   databaseUrl,
-  drafts,
+  drafts: suppliedDrafts,
   identity,
 }: StudySessionRuntimeOptions): StudySessionRuntime {
   const connection =
@@ -50,12 +54,17 @@ export function createStudySessionRuntime({
       maxConnections: 5,
     });
 
+  const drafts =
+    suppliedDrafts ??
+    createPersistentStudySessionDrafts(createGenerationDraftRepository(connection.database));
   const snapshots = createStudySessionSnapshotRepository(connection.database);
   const ownership = createStudySessionOwnershipRepository(connection.database);
   const sessions = createStudySessionApplication(snapshots);
   const application = createOwnedStudySessionApplication(sessions, ownership);
 
   return Object.freeze({
+    identity,
+    drafts,
     handlers: createStudySessionHttpHandlers({
       identity,
       drafts,
