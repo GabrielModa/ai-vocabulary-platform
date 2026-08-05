@@ -12,6 +12,7 @@ import {
 } from "@vocabulary/domain-vocabulary";
 import { createStudySessionAnswerHandler } from "../app/api/study-sessions/answer-http";
 import { createStudySessionHttpHandlers } from "../app/api/study-sessions/http";
+import { createDraftResolutionHandler } from "../app/api/vocabulary/drafts/resolve-http";
 import {
   createPersistentStudySessionDrafts,
   type PersistentStudySessionDrafts,
@@ -32,6 +33,7 @@ export interface StudySessionRuntime {
   readonly drafts: PersistentStudySessionDrafts;
   readonly handlers: ReturnType<typeof createStudySessionHttpHandlers>;
   readonly answers: ReturnType<typeof createStudySessionAnswerHandler>;
+  readonly resolveDraft: ReturnType<typeof createDraftResolutionHandler>;
   close(): Promise<void>;
 }
 
@@ -75,6 +77,10 @@ export function createStudySessionRuntime({
     answers: createStudySessionAnswerHandler({
       identity,
       application,
+    }),
+    resolveDraft: createDraftResolutionHandler({
+      identity,
+      drafts,
     }),
     close: suppliedConnection ? () => Promise.resolve() : () => connection.close(),
   });

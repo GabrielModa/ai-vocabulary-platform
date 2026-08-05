@@ -21,7 +21,7 @@ export interface AuthenticatedVocabularyGenerationResponse {
 
 export interface AuthenticatedVocabularyGenerationDependencies {
   readonly identity: SessionIdentityPort<Headers>;
-  readonly drafts: PersistentStudySessionDrafts;
+  readonly drafts: Pick<PersistentStudySessionDrafts, "save">;
   readonly generate: (input: unknown) => Promise<EnrichedVocabularySet>;
   readonly now?: () => Date;
   readonly createDraftId?: () => string;
@@ -72,6 +72,7 @@ function toTrustedDraft(
     title: generated.title,
     level,
     createdAt,
+    sourceCandidates: Object.freeze(generated.candidates),
     candidates: Object.freeze(
       generated.candidates.map((candidate) =>
         Object.freeze({

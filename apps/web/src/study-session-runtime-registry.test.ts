@@ -28,6 +28,13 @@ const drafts: PersistentStudySessionDrafts = {
       message: "Draft was not found",
     });
   },
+  resolveReview() {
+    return Promise.resolve({
+      ok: false,
+      code: "draft-not-found",
+      message: "Draft was not found",
+    });
+  },
 };
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
