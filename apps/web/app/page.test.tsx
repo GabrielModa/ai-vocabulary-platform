@@ -9,6 +9,7 @@ const generatedSet = {
   candidates: [
     {
       candidateId: "candidate:pitch",
+      senseId: "sense:pitch",
       term: "pitch",
       meaning: "The playing surface.",
       type: "noun",
@@ -17,6 +18,7 @@ const generatedSet = {
     },
     {
       candidateId: "candidate:pass",
+      senseId: "sense:pass",
       term: "pass",
       meaning: "To send the ball to a teammate.",
       type: "verb",
@@ -25,6 +27,7 @@ const generatedSet = {
     },
     {
       candidateId: "candidate:close-match",
+      senseId: "sense:close-match",
       term: "close match",
       meaning: "A game with a small score difference.",
       type: "collocation",
@@ -33,6 +36,7 @@ const generatedSet = {
     },
     {
       candidateId: "candidate:goalkeeper",
+      senseId: "sense:goalkeeper",
       term: "goalkeeper",
       meaning: "The player who protects the goal.",
       type: "noun",
@@ -70,6 +74,17 @@ function fetchForGeneration(
 
     if (url.endsWith("/api/vocabulary/generate")) {
       return Promise.resolve(responseJson(generationEnvelope(generation, draftId)));
+    }
+
+    if (url.includes("/api/vocabulary/drafts/") && url.endsWith("/resolve")) {
+      return Promise.resolve(
+        responseJson({
+          draftId: `${draftId}-resolved`,
+          expiresAt: "2027-01-01T00:30:00.000Z",
+          publishedCandidateIds: generation.candidates.map(({ candidateId }) => candidateId),
+          omittedCandidateIds: [],
+        }),
+      );
     }
 
     if (url.endsWith("/api/study-sessions")) {
@@ -194,7 +209,7 @@ describe("VocabularyPage", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          draftId: "draft-1",
+          draftId: "draft-1-resolved",
           title: "Your football word set",
           level: "B1",
           selectedCandidateIds: [

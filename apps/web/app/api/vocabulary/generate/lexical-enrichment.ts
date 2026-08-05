@@ -40,6 +40,7 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly frequencyPerMillion?: number;
   readonly frequencyProvenance?: FrequencyContent["provenance"];
   readonly verifiedExamples?: readonly ExampleContent[];
+  readonly verifiedExamplesBySenseId?: Readonly<Record<string, readonly ExampleContent[]>>;
   readonly exampleProvenance?: ExampleContent["provenance"];
   readonly senseId?: string;
   readonly lexicalProvenance?: LexicalContent["provenance"];
@@ -157,6 +158,7 @@ function adaptCandidate(
   },
   frequency: FrequencyContent | undefined,
   examples: readonly ExampleContent[],
+  examplesBySenseId: Readonly<Record<string, readonly ExampleContent[]>>,
   exercisePipelineOutcome: ExercisePipelineOutcome | undefined,
 ): EnrichedCandidate {
   const firstExample = examples[0];
@@ -168,6 +170,9 @@ function adaptCandidate(
           verifiedExamples: examples,
           exampleProvenance: firstExample.provenance,
         }
+      : {}),
+    ...(Object.keys(examplesBySenseId).length > 0
+      ? { verifiedExamplesBySenseId: examplesBySenseId }
       : {}),
     candidateId: candidate.candidateId,
     normalizedLemma: candidate.normalizedLemma,
@@ -239,6 +244,20 @@ async function lookupExamples(
   }
 }
 
+async function lookupExamplesBySenseId(
+  provider: ExampleLookup | undefined,
+  senses: readonly LexicalContent[],
+): Promise<Readonly<Record<string, readonly ExampleContent[]>>> {
+  const entries = await Promise.all(
+    senses.map(async ({ senseId }) => {
+      const examples = await lookupExamples(provider, senseId);
+      return [senseId, examples] as const;
+    }),
+  );
+
+  return Object.freeze(Object.fromEntries(entries));
+}
+
 export async function enrichVocabularySet(
   vocabularySet: LocalVocabularySet,
   lexicalLookup: LexicalLookup | undefined,
@@ -260,7 +279,7 @@ export async function enrichVocabularySet(
     lexicalLookup,
   );
 
-  const [frequencies, examples] = await Promise.all([
+  const [frequencies, examplesBySenseId] = await Promise.all([
     Promise.all(
       pipeline.candidates.map((candidate) =>
         lookupFrequency(frequencyLookup, candidate.normalizedLemma),
@@ -268,7 +287,7 @@ export async function enrichVocabularySet(
     ),
     Promise.all(
       pipeline.candidates.map((candidate) =>
-        lookupExamples(exampleLookup, candidate.selectedSense?.senseId),
+        lookupExamplesBySenseId(exampleLookup, candidate.availableSenses),
       ),
     ),
   ]);
@@ -276,8 +295,21 @@ export async function enrichVocabularySet(
   const frequencyByCandidateId = new Map(
     pipeline.candidates.map((candidate, index) => [candidate.candidateId, frequencies[index]]),
   );
+  const examplesBySenseByCandidateId = new Map(
+    pipeline.candidates.map((candidate, index) => [
+      candidate.candidateId,
+      examplesBySenseId[index] ?? {},
+    ]),
+  );
   const examplesByCandidateId = new Map(
-    pipeline.candidates.map((candidate, index) => [candidate.candidateId, examples[index] ?? []]),
+    pipeline.candidates.map((candidate) => [
+      candidate.candidateId,
+      candidate.selectedSense
+        ? (examplesBySenseByCandidateId.get(candidate.candidateId)?.[
+            candidate.selectedSense.senseId
+          ] ?? [])
+        : [],
+    ]),
   );
 
   const ranking = rankLearningCandidates(
@@ -321,6 +353,7 @@ export async function enrichVocabularySet(
             ranked,
             frequencyByCandidateId.get(ranked.candidate.candidateId),
             examplesByCandidateId.get(ranked.candidate.candidateId) ?? [],
+            examplesBySenseByCandidateId.get(ranked.candidate.candidateId) ?? {},
             outcomeByCandidateId.get(ranked.candidate.candidateId),
           ),
         ]

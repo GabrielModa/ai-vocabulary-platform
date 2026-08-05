@@ -168,7 +168,12 @@ export function createPersistentStudySessionDrafts(
           const sourceCandidate = byCandidateId.get(candidate.candidateId);
           return {
             candidate,
-            examples: sourceCandidate?.verifiedExamples ?? [],
+            examples:
+              sourceCandidate?.verifiedExamplesBySenseId?.[
+                candidate.selectedSense?.senseId ?? ""
+              ] ??
+              sourceCandidate?.verifiedExamples ??
+              [],
           };
         }),
       );

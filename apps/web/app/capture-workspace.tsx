@@ -278,14 +278,68 @@ export function CaptureWorkspace() {
     setCreatingSession(true);
     setError(undefined);
     try {
+      const selections = candidates
+        .filter((candidate) => selected.has(candidate.term))
+        .map((candidate) => ({
+          candidateId: candidate.candidateId,
+          senseId: candidate.senseId,
+        }))
+        .filter(
+          (
+            selection,
+          ): selection is {
+            readonly candidateId: string;
+            readonly senseId: string;
+          } => Boolean(selection.candidateId && selection.senseId),
+        );
+
+      if (selections.length !== selected.size) {
+        setError("Confirm the intended meaning for every selected word before training.");
+        return;
+      }
+
+      const resolution = await fetch(
+        `/api/vocabulary/drafts/${encodeURIComponent(draftId)}/resolve`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ selections }),
+        },
+      );
+
+      if (!resolution.ok) {
+        if (resolution.status === 401) {
+          setError("Sign in again before resolving this generated set.");
+        } else if (resolution.status === 404) {
+          setError("This generated set expired. Generate a new set to continue.");
+        } else {
+          setError("The reviewed words could not produce verified exercises.");
+        }
+        return;
+      }
+
+      const resolved = (await resolution.json()) as {
+        readonly draftId: string;
+        readonly publishedCandidateIds: readonly string[];
+      };
+      const published = new Set(resolved.publishedCandidateIds);
+      const publishedCandidateIds = selectedCandidateIds.filter((candidateId) =>
+        published.has(candidateId),
+      );
+
+      if (publishedCandidateIds.length === 0) {
+        setError("The reviewed words could not produce verified exercises.");
+        return;
+      }
+
       const response = await fetch("/api/study-sessions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          draftId,
+          draftId: resolved.draftId,
           title,
           level,
-          selectedCandidateIds,
+          selectedCandidateIds: publishedCandidateIds,
         }),
       });
 
