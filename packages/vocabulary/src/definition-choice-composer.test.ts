@@ -83,6 +83,7 @@ describe("definition choice composer", () => {
     expect(result.exercise).toEqual({
       exerciseId: `exercise:${encodeURIComponent(target.knowledgeId)}:definition-choice:v1`,
       kind: "definition-choice",
+      candidateId: target.candidateId,
       knowledgeId: target.knowledgeId,
       senseId: "sense:affection",
       prompt: "A feeling of fondness or care.",

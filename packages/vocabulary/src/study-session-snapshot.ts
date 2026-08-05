@@ -1,18 +1,21 @@
+import type { PersistentDefinitionChoiceExercise } from "./definition-choice-persistence-mapper.js";
 import type { VerifiedExercise } from "./exercise-composer.js";
+
+export type PersistentPublishedExercise = VerifiedExercise | PersistentDefinitionChoiceExercise;
 
 export interface PublishedExerciseSelection {
   readonly candidateId: string;
   readonly outcome:
     | {
         readonly outcome: "publish";
-        readonly exercise: VerifiedExercise;
+        readonly exercise: PersistentPublishedExercise;
       }
     | {
         readonly outcome: "request-ai-fallback" | "reject";
       };
 }
 
-export interface StudySessionExerciseSnapshot {
+export interface ClozeStudySessionExerciseSnapshot {
   readonly exerciseId: string;
   readonly exerciseKind: "cloze";
   readonly candidateId: string;
@@ -29,6 +32,22 @@ export interface StudySessionExerciseSnapshot {
     readonly lexicalSourceRecordId: string;
   };
 }
+
+export interface DefinitionChoiceStudySessionExerciseSnapshot {
+  readonly exerciseId: string;
+  readonly exerciseKind: "definition-choice";
+  readonly candidateId: string;
+  readonly knowledgeId: string;
+  readonly senseId: string;
+  readonly prompt: string;
+  readonly answer: string;
+  readonly options: readonly [string, string, string, string];
+  readonly choiceIds: readonly [string, string, string, string];
+  readonly provenance: PersistentDefinitionChoiceExercise["provenance"];
+}
+
+export type StudySessionExerciseSnapshot =
+  ClozeStudySessionExerciseSnapshot | DefinitionChoiceStudySessionExerciseSnapshot;
 
 export interface StudySessionSnapshot {
   readonly sessionId: string;
@@ -71,10 +90,36 @@ function stableUnique(values: readonly string[]): readonly string[] {
   return Object.freeze([...new Set(values)]);
 }
 
-function snapshotExercise(exercise: VerifiedExercise): StudySessionExerciseSnapshot {
-  const [answer, first, second, third] = exercise.options;
-  if (answer === undefined || first === undefined || second === undefined || third === undefined) {
-    throw new Error("Verified exercise must contain exactly four options");
+function fourValues(values: readonly string[]): readonly [string, string, string, string] {
+  const [first, second, third, fourth] = values;
+
+  if (
+    first === undefined ||
+    second === undefined ||
+    third === undefined ||
+    fourth === undefined ||
+    values.length !== 4
+  ) {
+    throw new Error("Published exercise must contain exactly four values");
+  }
+
+  return Object.freeze([first, second, third, fourth]);
+}
+
+function snapshotExercise(exercise: PersistentPublishedExercise): StudySessionExerciseSnapshot {
+  if (exercise.exerciseKind === "definition-choice") {
+    return Object.freeze({
+      exerciseId: exercise.exerciseId,
+      exerciseKind: exercise.exerciseKind,
+      candidateId: exercise.candidateId,
+      knowledgeId: exercise.knowledgeId,
+      senseId: exercise.senseId,
+      prompt: exercise.prompt,
+      answer: exercise.answer,
+      options: fourValues(exercise.options),
+      choiceIds: fourValues(exercise.choiceIds),
+      provenance: Object.freeze([...exercise.provenance]),
+    });
   }
 
   return Object.freeze({
@@ -86,8 +131,10 @@ function snapshotExercise(exercise: VerifiedExercise): StudySessionExerciseSnaps
     sourceSentence: exercise.sourceSentence,
     gapSentence: exercise.gapSentence,
     answer: exercise.answer,
-    options: Object.freeze([answer, first, second, third] as [string, string, string, string]),
-    provenance: Object.freeze({ ...exercise.provenance }),
+    options: fourValues(exercise.options),
+    provenance: Object.freeze({
+      ...exercise.provenance,
+    }),
   });
 }
 
@@ -137,6 +184,7 @@ export function buildStudySessionSnapshot(
   const byCandidateId = new Map(
     input.candidates.map((candidate) => [candidate.candidateId, candidate]),
   );
+
   const selectedCandidateIds = stableUnique(
     input.selectedCandidateIds.map((candidateId) => candidateId.normalize("NFKC").trim()),
   ).filter(Boolean);
@@ -147,12 +195,14 @@ export function buildStudySessionSnapshot(
 
   for (const candidateId of selectedCandidateIds) {
     const candidate = byCandidateId.get(candidateId);
+
     if (candidate?.outcome.outcome !== "publish") {
       omittedCandidateIds.push(candidateId);
       continue;
     }
 
     const exercise = candidate.outcome.exercise;
+
     if (exercise.candidateId !== candidateId || includedExerciseIds.has(exercise.exerciseId)) {
       omittedCandidateIds.push(candidateId);
       continue;

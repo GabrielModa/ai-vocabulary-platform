@@ -11,6 +11,7 @@ export interface DefinitionChoiceOption {
 export interface DefinitionChoiceExercise {
   readonly exerciseId: string;
   readonly kind: "definition-choice";
+  readonly candidateId: string;
   readonly knowledgeId: string;
   readonly senseId: string;
   readonly prompt: string;
@@ -110,18 +111,18 @@ export function composeDefinitionChoice(
       }),
     ),
   );
-  const correctChoiceId = choiceId(input.knowledge.knowledgeId);
 
   return Object.freeze({
     ok: true,
     exercise: Object.freeze({
       exerciseId: exerciseId(input.knowledge),
       kind: "definition-choice",
+      candidateId: input.knowledge.candidateId,
       knowledgeId: input.knowledge.knowledgeId,
       senseId: input.knowledge.selectedSense.senseId,
       prompt: input.knowledge.selectedSense.definition,
       options,
-      correctChoiceId,
+      correctChoiceId: choiceId(input.knowledge.knowledgeId),
       provenance: Object.freeze([...input.knowledge.provenance]),
     }),
   });
