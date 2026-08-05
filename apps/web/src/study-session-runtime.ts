@@ -10,6 +10,7 @@ import {
   createOwnedStudySessionApplication,
   createStudySessionApplication,
 } from "@vocabulary/domain-vocabulary";
+import { createStudySessionAnswerHandler } from "../app/api/study-sessions/answer-http";
 import { createStudySessionHttpHandlers } from "../app/api/study-sessions/http";
 import {
   createPersistentStudySessionDrafts,
@@ -30,6 +31,7 @@ export interface StudySessionRuntime {
   readonly identity: SessionIdentityPort<Headers>;
   readonly drafts: PersistentStudySessionDrafts;
   readonly handlers: ReturnType<typeof createStudySessionHttpHandlers>;
+  readonly answers: ReturnType<typeof createStudySessionAnswerHandler>;
   close(): Promise<void>;
 }
 
@@ -68,6 +70,10 @@ export function createStudySessionRuntime({
     handlers: createStudySessionHttpHandlers({
       identity,
       drafts,
+      application,
+    }),
+    answers: createStudySessionAnswerHandler({
+      identity,
       application,
     }),
     close: suppliedConnection ? () => Promise.resolve() : () => connection.close(),

@@ -26,7 +26,9 @@
     "test": "vitest run --passWithNoTests",
     "test:accessibility": "vitest run packages/ui apps/web apps/admin --passWithNoTests",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit -p tsconfig.json && turbo run typecheck"
+    "typecheck": "tsc --noEmit -p tsconfig.json && turbo run typecheck",
+    "dev:local": "node scripts/dev-local.mjs",
+    "dev:web": "pnpm --filter @vocabulary/web dev"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
