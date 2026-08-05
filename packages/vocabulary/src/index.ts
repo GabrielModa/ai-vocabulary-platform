@@ -19,6 +19,7 @@ export * from "./photo-ingestion.js";
 export * from "./providers.js";
 export * from "./repository.js";
 export * from "./review.js";
+export * from "./resolved-word-knowledge.js";
 export * from "./sense-bound-cloze.js";
 export * from "./session.js";
 export * from "./owned-study-session-application.js";
