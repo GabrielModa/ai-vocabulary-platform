@@ -9,6 +9,7 @@ import type {
 import type { StudySessionDraftPort } from "../app/api/study-sessions/http";
 import type { EnrichedCandidate } from "../app/api/vocabulary/generate/lexical-enrichment";
 import { runCandidateExercisePipelines } from "../app/api/vocabulary/generate/pipeline-adapter";
+import { publishReviewedDefinitionChoices } from "./reviewed-definition-choice-publication";
 import type { LearningCandidate } from "@vocabulary/domain-vocabulary";
 
 export const GENERATION_DRAFT_VERSION = "vocabulary-generation-draft-v1" as const;
@@ -180,14 +181,30 @@ export function createPersistentStudySessionDrafts(
       const outcomeByCandidateId = new Map(
         outcomes.map((value) => [value.candidateId, value.outcome]),
       );
+      const definitionChoiceByCandidateId = new Map(
+        publishReviewedDefinitionChoices({
+          candidates: learningCandidates,
+          sources: sourceCandidates,
+          context: {
+            topic: source.title,
+            learnerLevel: source.level,
+            locale: "en-US",
+          },
+        }).map((value) => [value.candidateId, value.outcome]),
+      );
       const candidates = Object.freeze(
-        learningCandidates.map((candidate) =>
-          Object.freeze({
+        learningCandidates.map((candidate) => {
+          const legacyOutcome = outcomeByCandidateId.get(candidate.candidateId);
+          const definitionChoiceOutcome = definitionChoiceByCandidateId.get(candidate.candidateId);
+
+          return Object.freeze({
             candidateId: candidate.candidateId,
             outcome:
-              outcomeByCandidateId.get(candidate.candidateId) ?? ({ outcome: "reject" } as const),
-          }),
-        ),
+              legacyOutcome?.outcome === "publish"
+                ? legacyOutcome
+                : (definitionChoiceOutcome ?? legacyOutcome ?? ({ outcome: "reject" } as const)),
+          });
+        }),
       );
       const publishedCandidateIds = Object.freeze(
         candidates
