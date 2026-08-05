@@ -4,6 +4,7 @@ import type {
   StudySessionSnapshot,
 } from "@vocabulary/domain-vocabulary";
 import { NextResponse } from "next/server";
+import { evaluateStudySessionExerciseAnswer } from "../../../src/study-session-exercise-runtime";
 
 export interface SubmitStudySessionAnswerRequest {
   readonly exerciseId: string;
@@ -19,7 +20,9 @@ export interface StudySessionAnswerResponse {
 }
 
 interface RouteContext {
-  readonly params: Promise<{ readonly id: string }>;
+  readonly params: Promise<{
+    readonly id: string;
+  }>;
 }
 
 export interface StudySessionAnswerDependencies {
@@ -31,11 +34,15 @@ function errorResponse(status: number, code: string, message: string): NextRespo
   return NextResponse.json({ code, message }, { status });
 }
 
-function authenticatedLearner(
-  identity: SessionIdentity,
-):
-  | { readonly ok: true; readonly subjectId: string }
-  | { readonly ok: false; readonly response: NextResponse } {
+function authenticatedLearner(identity: SessionIdentity):
+  | {
+      readonly ok: true;
+      readonly subjectId: string;
+    }
+  | {
+      readonly ok: false;
+      readonly response: NextResponse;
+    } {
   if (identity.kind === "anonymous") {
     return {
       ok: false,
@@ -50,11 +57,17 @@ function authenticatedLearner(
     };
   }
 
-  return { ok: true, subjectId: identity.subjectId };
+  return {
+    ok: true,
+    subjectId: identity.subjectId,
+  };
 }
 
 function isAnswerRequest(value: unknown): value is SubmitStudySessionAnswerRequest {
-  if (value === null || typeof value !== "object") return false;
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+
   const candidate = value as Record<string, unknown>;
 
   return (
@@ -102,6 +115,7 @@ export function createStudySessionAnswerHandler({
     }
 
     const exercise = findExercise(session.snapshot, body.exerciseId.trim());
+
     if (exercise === undefined) {
       return errorResponse(
         404,
@@ -110,22 +124,18 @@ export function createStudySessionAnswerHandler({
       );
     }
 
-    const selectedOption = body.selectedOption.normalize("NFKC").trim();
+    const evaluation = evaluateStudySessionExerciseAnswer(exercise, body.selectedOption);
 
-    if (!exercise.options.includes(selectedOption)) {
-      return errorResponse(
-        400,
-        "INVALID_STUDY_SESSION_OPTION",
-        "Selected option is not available for this exercise",
-      );
+    if (!evaluation.ok) {
+      return errorResponse(400, evaluation.code, evaluation.message);
     }
 
     const response: StudySessionAnswerResponse = Object.freeze({
       sessionId: session.snapshot.sessionId,
-      exerciseId: exercise.exerciseId,
-      selectedOption,
-      correct: selectedOption === exercise.answer,
-      correctAnswer: exercise.answer,
+      exerciseId: evaluation.exerciseId,
+      selectedOption: evaluation.selectedOption,
+      correct: evaluation.correct,
+      correctAnswer: evaluation.correctAnswer,
     });
 
     return NextResponse.json(response);
