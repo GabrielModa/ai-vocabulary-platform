@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-
-const workerUrl = "http://127.0.0.1:8765";
+import { imageWorkerEndpoint } from "./image-worker-client";
 
 function normalizeWorkerJob(value: unknown): unknown {
   if (typeof value !== "object" || value === null) return value;
@@ -11,7 +10,7 @@ function normalizeWorkerJob(value: unknown): unknown {
 export async function POST(request: Request) {
   try {
     const body: unknown = await request.json();
-    const response = await fetch(`${workerUrl}/v1/images/jobs`, {
+    const response = await fetch(imageWorkerEndpoint("/v1/images/jobs"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),

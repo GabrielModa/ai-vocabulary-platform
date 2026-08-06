@@ -33,7 +33,12 @@ const databaseUrl =
   process.env.DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/vocabulary";
 const ollamaUrl = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
 const ollamaModel = process.env.OLLAMA_MODEL;
+const imageWorkerUrl = (process.env.IMAGE_WORKER_URL ?? "http://127.0.0.1:8765").replace(
+  /\/+$/u,
+  "",
+);
 const localLearnerId = process.env.LOCAL_DEV_LEARNER_ID ?? "local-learner";
+const ownedChildren = new Set();
 
 function commandExists(command) {
   const probe = process.platform === "win32" ? "where" : "which";
@@ -160,6 +165,105 @@ async function ensureOllama() {
   log(`Ollama ready at ${ollamaUrl} using ${ollamaModel}`);
 }
 
+async function imageWorkerHealth() {
+  try {
+    const response = await fetch(`${imageWorkerUrl}/health`, {
+      signal: AbortSignal.timeout(2_500),
+    });
+    if (!response.ok) return undefined;
+    return await response.json();
+  } catch {
+    return undefined;
+  }
+}
+
+function imageWorkerCommand() {
+  const serviceRoot = resolve(root, "services/image-worker");
+  const windowsPython = resolve(serviceRoot, ".venv/Scripts/python.exe");
+  const unixPython = resolve(serviceRoot, ".venv/bin/python");
+
+  if (existsSync(windowsPython)) {
+    return {
+      command: windowsPython,
+      args: ["-m", "image_worker.server"],
+      cwd: serviceRoot,
+    };
+  }
+
+  if (existsSync(unixPython)) {
+    return {
+      command: unixPython,
+      args: ["-m", "image_worker.server"],
+      cwd: serviceRoot,
+    };
+  }
+
+  return undefined;
+}
+
+async function ensureImageWorker() {
+  const existing = await imageWorkerHealth();
+  if (existing) {
+    log(
+      `Image worker ready at ${imageWorkerUrl}` +
+        (existing.device ? ` using ${existing.device}` : ""),
+    );
+    return;
+  }
+
+  const invocation = imageWorkerCommand();
+  if (!invocation) {
+    log(
+      "Image worker environment is unavailable. " + "Exercises will continue without visual clues.",
+    );
+    return;
+  }
+
+  log("Starting the local image worker...");
+  const child = spawn(invocation.command, invocation.args, {
+    cwd: invocation.cwd,
+    env: {
+      ...process.env,
+      IMAGE_WORKER_URL: imageWorkerUrl,
+    },
+    stdio: "inherit",
+    shell: false,
+  });
+  ownedChildren.add(child);
+  child.once("exit", () => ownedChildren.delete(child));
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const health = await imageWorkerHealth();
+    if (health) {
+      log(
+        `Image worker ready at ${imageWorkerUrl}` +
+          (health.device ? ` using ${health.device}` : ""),
+      );
+      return;
+    }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 1_000));
+  }
+
+  log("Image worker did not become ready. " + "Exercises will continue without visual clues.");
+}
+
+function stopOwnedChildren() {
+  for (const child of ownedChildren) {
+    if (!child.killed) child.kill();
+  }
+  ownedChildren.clear();
+}
+
+process.once("SIGINT", () => {
+  stopOwnedChildren();
+  process.exit(130);
+});
+process.once("SIGTERM", () => {
+  stopOwnedChildren();
+  process.exit(143);
+});
+process.once("exit", stopOwnedChildren);
+
 function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: root,
@@ -168,6 +272,7 @@ function run(command, args) {
       DATABASE_URL: databaseUrl,
       OLLAMA_BASE_URL: ollamaUrl,
       OLLAMA_MODEL: ollamaModel,
+      IMAGE_WORKER_URL: imageWorkerUrl,
     },
     stdio: "inherit",
     shell: process.platform === "win32",
@@ -178,6 +283,7 @@ function run(command, args) {
 
 await ensurePostgres();
 await ensureOllama();
+await ensureImageWorker();
 
 log("Building database runtime...");
 run("pnpm", ["--filter", "@vocabulary/database", "build"]);
@@ -195,6 +301,7 @@ const web = spawn("pnpm", ["--filter", "@vocabulary/web", "dev"], {
     DATABASE_URL: databaseUrl,
     OLLAMA_BASE_URL: ollamaUrl,
     OLLAMA_MODEL: ollamaModel,
+    IMAGE_WORKER_URL: imageWorkerUrl,
     LOCAL_DEV_AUTH: "true",
     LOCAL_DEV_LEARNER_ID: localLearnerId,
   },
@@ -202,4 +309,7 @@ const web = spawn("pnpm", ["--filter", "@vocabulary/web", "dev"], {
   shell: process.platform === "win32",
 });
 
-web.on("exit", (code) => process.exit(code ?? 0));
+web.on("exit", (code) => {
+  stopOwnedChildren();
+  process.exit(code ?? 0);
+});

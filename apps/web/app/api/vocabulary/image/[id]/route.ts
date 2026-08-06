@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-
-const workerUrl = "http://127.0.0.1:8765";
+import { imageWorkerEndpoint } from "../image-worker-client";
 const validId = /^[a-f0-9]{24}$/u;
 
 function normalizeWorkerJob(value: unknown): unknown {
@@ -15,7 +14,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const wantsFile = new URL(request.url).searchParams.has("file");
   const path = wantsFile ? `/v1/images/files/${id}` : `/v1/images/jobs/${id}`;
   try {
-    const response = await fetch(`${workerUrl}${path}`, {
+    const response = await fetch(imageWorkerEndpoint(path), {
       cache: wantsFile ? "force-cache" : "no-store",
       signal: AbortSignal.timeout(2_000),
     });
