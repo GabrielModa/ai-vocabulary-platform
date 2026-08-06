@@ -12,6 +12,11 @@ import {
   resolveCandidateSense,
   type ReviewCandidate,
 } from "./lexical-review";
+import {
+  applySensePreference,
+  readSensePreferences,
+  writeSensePreference,
+} from "./sense-preferences";
 
 type Mode = "words" | "topic" | "photo";
 const modeCopy: Record<Mode, { title: string; description: string }> = {
@@ -49,6 +54,7 @@ interface Attempt {
   readonly term: string;
   readonly chosenTerm: string;
   readonly correct: boolean;
+  readonly voided?: boolean;
 }
 
 interface ImageJob {
@@ -218,6 +224,8 @@ export function CaptureWorkspace() {
   const [draftId, setDraftId] = useState<string>();
   const [draftExpiresAt, setDraftExpiresAt] = useState<string>();
   const [studySessionId, setStudySessionId] = useState<string>();
+  const [meaningCorrectionTerm, setMeaningCorrectionTerm] = useState<string>();
+  const [meaningCorrectionStatus, setMeaningCorrectionStatus] = useState<string>();
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (mode === "photo") {
@@ -241,18 +249,23 @@ export function CaptureWorkspace() {
       });
       if (!response.ok) throw new Error("generation failed");
       const result = (await response.json()) as GenerationEnvelope;
-      setCandidates(result.generation.candidates);
+      const preferences =
+        typeof window === "undefined" ? {} : readSensePreferences(window.localStorage);
+      const preferredCandidates = result.generation.candidates.map((candidate) =>
+        applySensePreference(candidate, preferences),
+      );
+      setCandidates(preferredCandidates);
       setTitle(result.generation.title);
       setDraftId(result.draft.draftId);
       setDraftExpiresAt(result.draft.expiresAt);
       setStudySessionId(undefined);
-      setSelected(new Set(result.generation.candidates.map(({ term }) => term)));
+      setSelected(new Set(preferredCandidates.map(({ term }) => term)));
       setExpandedMeanings(new Set());
       setSelectedSenseIds({});
       setConfirmedMeanings(new Set());
       setLevel(requestedLevel);
       setReviewing(true);
-      for (const candidate of result.generation.candidates
+      for (const candidate of preferredCandidates
         .filter((item) => !requiresSenseConfirmation(item))
         .slice(0, 4))
         void enqueueImage(candidate, requestedLevel);
@@ -392,6 +405,27 @@ export function CaptureWorkspace() {
     setAttempts((current) => [...current, { term: currentCandidate.term, chosenTerm, correct }]);
   }
 
+  function chooseFutureMeaning(candidate: Candidate, senseId: string) {
+    if (typeof window !== "undefined") {
+      writeSensePreference(window.localStorage, candidate.term, senseId);
+    }
+
+    const previousAttempt = attempts.find(({ term }) => term === candidate.term);
+    if (previousAttempt?.correct) {
+      setScore((current) => Math.max(0, current - 1));
+    }
+
+    setAttempts((current) =>
+      current.map((attempt) =>
+        attempt.term === candidate.term ? { ...attempt, voided: true } : attempt,
+      ),
+    );
+    setMeaningCorrectionTerm(undefined);
+    setMeaningCorrectionStatus(
+      `Thanks — we will use the new meaning for ${candidate.term} next time.`,
+    );
+  }
+
   function nextQuestion() {
     if (questionIndex + 1 >= trainingCandidates.length) {
       setSessionComplete(true);
@@ -407,6 +441,8 @@ export function CaptureWorkspace() {
     setQuestionIndex(index);
     setChosenTerm(previousAttempt?.chosenTerm);
     setFeedback(previousAttempt ? (previousAttempt.correct ? "correct" : "incorrect") : undefined);
+    setMeaningCorrectionTerm(undefined);
+    setMeaningCorrectionStatus(undefined);
   }
 
   function resetSession() {
@@ -424,6 +460,8 @@ export function CaptureWorkspace() {
     setDraftId(undefined);
     setDraftExpiresAt(undefined);
     setStudySessionId(undefined);
+    setMeaningCorrectionTerm(undefined);
+    setMeaningCorrectionStatus(undefined);
   }
 
   function confirmSense(candidate: Candidate) {
@@ -442,8 +480,9 @@ export function CaptureWorkspace() {
     setConfirmedMeanings((current) => new Set(current).add(candidate.term));
   }
 
+  const scorableAttempts = attempts.filter(({ voided }) => !voided);
   const percentage =
-    trainingCandidates.length === 0 ? 0 : Math.round((score / trainingCandidates.length) * 100);
+    scorableAttempts.length === 0 ? 0 : Math.round((score / scorableAttempts.length) * 100);
 
   return (
     <main id="main-content" className="app-shell">
@@ -825,6 +864,51 @@ export function CaptureWorkspace() {
                         🔊
                       </button>
                     </p>
+                    {compatibleLexicalSenses(currentCandidate).length > 1 && (
+                      <div className="meaning-correction">
+                        <button
+                          type="button"
+                          className="text-button"
+                          aria-expanded={meaningCorrectionTerm === currentCandidate.term}
+                          onClick={() => {
+                            setMeaningCorrectionTerm((current) =>
+                              current === currentCandidate.term ? undefined : currentCandidate.term,
+                            );
+                            setMeaningCorrectionStatus(undefined);
+                          }}
+                        >
+                          Wrong meaning?
+                        </button>
+                        {meaningCorrectionTerm === currentCandidate.term && (
+                          <fieldset className="meaning-options">
+                            <legend>Which meaning did you intend?</legend>
+                            {compatibleLexicalSenses(currentCandidate)
+                              .filter(({ senseId }) => senseId !== currentCandidate.senseId)
+                              .map((sense) => (
+                                <button
+                                  key={sense.senseId}
+                                  type="button"
+                                  className="secondary-action"
+                                  onClick={() => {
+                                    chooseFutureMeaning(currentCandidate, sense.senseId);
+                                  }}
+                                >
+                                  {sense.definition}
+                                </button>
+                              ))}
+                            <small>
+                              This question will not count toward your score. The current session
+                              will stay unchanged.
+                            </small>
+                          </fieldset>
+                        )}
+                        {meaningCorrectionStatus && (
+                          <p className="meaning-confirmed" role="status">
+                            {meaningCorrectionStatus}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <p>
                       <strong>Complete sentence:</strong> {currentCandidate.example}
                       <button
@@ -868,8 +952,8 @@ export function CaptureWorkspace() {
                 <p className="eyebrow">Session complete</p>
                 <h2 id="training-title">{percentage}% correct</h2>
                 <p>
-                  You answered {score} of {trainingCandidates.length} correctly. Open any word below
-                  to review it.
+                  You answered {score} of {scorableAttempts.length} scored questions correctly.
+                  Meaning corrections were excluded. Open any word below to review it.
                 </p>
                 <div className="result-breakdown">
                   {attempts.map((attempt) => {
@@ -881,7 +965,11 @@ export function CaptureWorkspace() {
                           <span aria-hidden="true">{attempt.correct ? "✓" : "×"}</span>
                           <strong>{candidate.term}</strong>
                           <span>
-                            {attempt.correct ? "Correct" : `You chose: ${attempt.chosenTerm}`}
+                            {attempt.voided
+                              ? "Meaning changed"
+                              : attempt.correct
+                                ? "Correct"
+                                : `You chose: ${attempt.chosenTerm}`}
                           </span>
                         </summary>
                         <div>
