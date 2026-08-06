@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "tsx": "^4.20.5",
+    "tsx": "^4.23.5",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
