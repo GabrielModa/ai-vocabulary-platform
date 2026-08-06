@@ -68,22 +68,27 @@ const IMAGE_POLL_INTERVAL_MS = 2_500;
 const IMAGE_JOB_TIMEOUT_MS = 180_000;
 
 async function enqueueImage(candidate: Candidate, level: string): Promise<ImageJob | undefined> {
-  try {
-    const response = await fetch("/api/vocabulary/image", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        term: candidate.term,
-        meaning: candidate.meaning,
-        context:
-          candidate.exerciseKind === "definition-choice" ? candidate.meaning : candidate.example,
-        level,
-      }),
-    });
-    return (await response.json()) as ImageJob;
-  } catch {
-    return undefined;
+  const context = `${candidate.meaning}. Example scene: ${candidate.example}`;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch("/api/vocabulary/image", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          term: candidate.term,
+          meaning: candidate.meaning,
+          context,
+          level,
+        }),
+      });
+      if (response.ok) return (await response.json()) as ImageJob;
+    } catch {
+      // A visual clue is optional. Retry once, then preserve the learning flow.
+    }
   }
+
+  return undefined;
 }
 
 function PracticeImage({ candidate, level }: { candidate: Candidate; level: string }) {
@@ -765,9 +770,7 @@ export function CaptureWorkspace() {
             </div>
             {!sessionComplete && currentCandidate ? (
               <div className="training-panel">
-                {studySessionId && (
-                  <p className="privacy-note">Study session {studySessionId} created securely.</p>
-                )}
+                {studySessionId && <p className="privacy-note">Your study session is ready.</p>}
                 <p className="progress-label">
                   Question {questionIndex + 1} of {trainingCandidates.length}
                 </p>

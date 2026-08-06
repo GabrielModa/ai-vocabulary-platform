@@ -646,3 +646,157 @@ select:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+\n/* Task 095: focused study experience and resilient visual clues */
+.training-card {
+  overflow: hidden;
+}
+
+.training-panel,
+.training-panel > * {
+  min-width: 0;
+}
+
+.progress-label {
+  margin: 0;
+  color: #aeb4bd;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.practice-image,
+.practice-image.placeholder {
+  width: min(100%, 42rem);
+  min-height: clamp(13rem, 34vw, 22rem);
+  max-height: 28rem;
+  justify-self: center;
+}
+
+.practice-image.ready {
+  aspect-ratio: 4 / 3;
+}
+
+.practice-image.ready img {
+  object-position: center;
+}
+
+.sentence-with-audio {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #30363e;
+  border-radius: 0.85rem;
+  background: #11151a;
+}
+
+.sentence-with-audio blockquote {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  line-height: 1.55;
+}
+
+.answer-option,
+.answer-option > label,
+.speakable-line {
+  min-width: 0;
+}
+
+.answer-option strong,
+.speakable-line,
+.answer-feedback p {
+  overflow-wrap: anywhere;
+}
+
+.question-navigation {
+  align-items: center;
+}
+
+.question-navigation .primary-action,
+.question-navigation .secondary-action,
+.result-panel > .primary-action {
+  width: auto;
+  min-width: 10rem;
+  min-height: 3rem;
+  justify-self: start;
+}
+
+.meaning-correction {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.meaning-correction .text-button {
+  min-height: auto;
+  justify-self: start;
+  padding: 0.25rem 0;
+}
+
+.meaning-correction .meaning-options {
+  min-width: 0;
+}
+
+.meaning-correction .secondary-action {
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.result-panel {
+  max-width: 48rem;
+}
+
+.result-panel .result-mark {
+  margin: 0;
+}
+
+.result-breakdown summary,
+.result-breakdown summary > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .training-card {
+    grid-template-columns: 1fr;
+  }
+
+  .training-card > .step,
+  .training-panel {
+    grid-column: 1;
+  }
+
+  .practice-image,
+  .practice-image.placeholder {
+    width: 100%;
+  }
+
+  .answer-option {
+    grid-template-columns: 1fr auto;
+    padding: 0.7rem;
+  }
+
+  .answer-option > label {
+    grid-template-columns: auto 1.75rem minmax(0, 1fr);
+    gap: 0.55rem;
+  }
+
+  .answer-option > label > span {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .question-navigation {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .question-navigation .primary-action,
+  .question-navigation .secondary-action {
+    width: 100%;
+  }
+
+  .sentence-with-audio,
+  .speakable-line {
+    align-items: flex-start;
+  }
+}

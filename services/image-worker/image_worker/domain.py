@@ -52,12 +52,17 @@ class VocabularyImageRequest:
     def controlled_prompt(self) -> str:
         return " ".join((
             "Create a single uncluttered educational drawing, not a photograph, for an English vocabulary exercise.",
-            f"Target concept: {self.term}.", f"Meaning: {self.meaning}.",
-            f"Scene context: {self.context}.", f"Learner level: {self.level}.",
+            f"Target concept: {self.term}.",
+            f"Exact intended meaning: {self.meaning}.",
+            f"Concrete scene to illustrate: {self.context}.",
+            f"Learner level: {self.level}.",
+            "Show the exact meaning through one literal everyday scene with one obvious focal subject and one visible action or relationship.",
+            "Make the target concept understandable from the scene context, not from written labels or symbolic decoration.",
             "Use one central observable subject or action, a strong silhouette, minimal background detail, and a clear everyday composition that is easy to understand at a glance.",
             "For a relational or abstract concept, provide a supporting memory clue without pretending the image uniquely proves the answer.",
-            "Use a clean colorful flat editorial illustration style; avoid photorealism, collages, decorative filler, unrelated people, or unrelated locations.",
-            "Use no written words, letters, captions, logos, or brands, and do not show or spell the target word.",
+            "Use a clean colorful flat editorial illustration style with crisp edges, coherent anatomy, natural proportions, balanced lighting, and high visual clarity.",
+            "Avoid photorealism, blur, haze, low contrast, distorted faces or hands, duplicate subjects, collages, split panels, decorative filler, abstract symbolism, unrelated people, or unrelated locations.",
+            "Use no written words, letters, captions, logos, watermarks, signs, or brands, and do not show or spell the target word.",
             "Exclude celebrities, frightening imagery, weapons, injuries, sexual content, and age-inappropriate content.",
         ))
 
