@@ -28,7 +28,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.json && turbo run typecheck",
     "dev:local": "node scripts/dev-local.mjs",
-    "dev:web": "pnpm --filter @vocabulary/web dev"
+    "dev:web": "pnpm --filter @vocabulary/web dev",
+    "mvp:verify": "pnpm vitest run apps/web/src/mvp-http-flow.test.ts apps/web/src/reviewed-study-session-flow.test.ts apps/web/src/study-session-exercise-runtime.test.ts apps/web/src/exercise-strategy-orchestrator.test.ts apps/web/src/reviewed-exercise-strategy.test.ts apps/web/src/reviewed-definition-choice-publication.test.ts apps/web/app/api/study-sessions/http.test.ts apps/web/app/api/study-sessions/answer-http.test.ts apps/web/app/api/study-sessions/response-contract.test.ts apps/web/app/api/vocabulary/drafts/resolve-http.test.ts --passWithNoTests && pnpm --filter @vocabulary/web typecheck && pnpm --filter @vocabulary/web lint && pnpm --filter @vocabulary/web build && pnpm format:check"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
