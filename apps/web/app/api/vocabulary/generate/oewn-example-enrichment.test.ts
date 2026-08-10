@@ -70,7 +70,7 @@ describe("OEWN example enrichment", () => {
     expect(enriched.candidates[0]).not.toHaveProperty("verifiedExamples");
   });
 
-  it("does not request examples before a sense is uniquely selected", async () => {
+  it("loads bounded sense evidence without replacing the example before selection", async () => {
     let requests = 0;
     const enriched = await enrichVocabularySet(
       generated,
@@ -83,7 +83,8 @@ describe("OEWN example enrichment", () => {
         },
       },
     );
-    expect(requests).toBe(0);
+    expect(requests).toBe(2);
     expect(enriched.candidates[0]?.example).toBe("Generic generated example.");
+    expect(enriched.candidates[0]).not.toHaveProperty("verifiedExamples");
   });
 });

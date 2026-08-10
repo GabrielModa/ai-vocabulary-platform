@@ -201,9 +201,8 @@ describe("VocabularyPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /start training/u }));
 
-    expect(
-      await screen.findByText("Study session study-session-1 created securely."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Your study session is ready.")).toBeInTheDocument();
+    expect(screen.queryByText(/study-session-1/u)).not.toBeInTheDocument();
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       "/api/study-sessions",
       expect.objectContaining({
