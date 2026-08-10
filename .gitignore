@@ -35,6 +35,7 @@ test-results/
 
 # Local image generation (never commit local runtime or large models)
 /services/image-worker/.venv/
+/services/image-worker/.venv-sdxl/
 /services/image-worker/models/
 /services/image-worker/cache/
 /services/image-worker/generated/

@@ -9,6 +9,7 @@ export default tseslint.config(
       "**/.next/**",
       "**/.turbo/**",
       "**/.venv/**",
+      "**/.venv-sdxl/**",
       "**/cache/**",
       "**/coverage/**",
       "**/dist/**",

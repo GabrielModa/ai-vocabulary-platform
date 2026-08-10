@@ -1,0 +1,7 @@
+# Optional SDXL/OpenVINO benchmark dependencies.
+optimum[openvino]>=1.24,<2
+diffusers>=0.35,<1
+transformers>=4.53,<5
+accelerate>=1.8,<2
+huggingface-hub>=0.33,<1
+psutil>=6,<8
