@@ -86,7 +86,7 @@ describe("verified exercise pipeline", () => {
         gapSentence: "Students can ___ regional dishes during the festival.",
         options: ["sample", "taste", "serve", "cook"],
       },
-      semanticUniqueness: "not-proven",
+      semanticUniqueness: "evidence-screened",
     });
   });
 
@@ -107,7 +107,48 @@ describe("verified exercise pipeline", () => {
         triggeringReasons: ["context-too-short"],
       },
       readinessIssues: [{ reason: "context-too-short" }],
-      semanticUniqueness: "not-proven",
+      semanticUniqueness: "evidence-screened",
+    });
+  });
+
+  it("rejects an exercise when selected distractor evidence overlaps the answer", () => {
+    const taste = candidate("taste", "verb");
+    const tasteSense = taste.selectedSense;
+    const answerSense = answer.candidate.selectedSense;
+    if (!tasteSense || !answerSense) throw new Error("Expected selected fixture senses");
+    const overlappingPool = [
+      {
+        candidate: {
+          ...taste,
+          selectedSense: {
+            ...tasteSense,
+            definition: "to sample a small amount of food",
+          },
+        },
+        frequencyPercentile: 0.58,
+      },
+      ...distractorPool.slice(1),
+    ];
+    const result = runVerifiedExercisePipeline({
+      answer: {
+        ...answer,
+        candidate: {
+          ...answer.candidate,
+          selectedSense: {
+            ...answerSense,
+            definition: "to try a small amount of food",
+          },
+        },
+      },
+      examples: [example("Students can sample regional dishes during the festival.")],
+      distractorPool: overlappingPool,
+    });
+
+    expect(result).toMatchObject({
+      outcome: "reject",
+      stage: "semantic-policy",
+      semanticUniqueness: "failed-screening",
+      semanticIssues: [{ reason: "definition-cross-reference", distractorLemma: "taste" }],
     });
   });
 

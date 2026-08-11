@@ -25,13 +25,13 @@ export type PublicExercisePipelineOutcome =
   | {
       readonly outcome: "publish";
       readonly pipeline: "verified-exercise-pipeline-v1";
-      readonly semanticUniqueness: "not-proven";
+      readonly semanticUniqueness: "evidence-screened";
       readonly exercise: PublicPublishedExercise;
     }
   | {
       readonly outcome: "request-ai-fallback";
       readonly pipeline: "verified-exercise-pipeline-v1";
-      readonly semanticUniqueness: "not-proven";
+      readonly semanticUniqueness: "evidence-screened";
       readonly operation: "rewrite-context-only";
       readonly requestId: string;
       readonly triggeringReasons: readonly string[];
@@ -39,10 +39,14 @@ export type PublicExercisePipelineOutcome =
   | {
       readonly outcome: "reject";
       readonly pipeline: "verified-exercise-pipeline-v1";
-      readonly semanticUniqueness: "not-proven";
-      readonly stage: "composition" | "structural-policy";
+      readonly semanticUniqueness: "not-proven" | "evidence-screened" | "failed-screening";
+      readonly stage: "composition" | "structural-policy" | "semantic-policy";
       readonly compositionCode?: string;
       readonly structuralReasons: readonly string[];
+      readonly semanticIssues?: readonly {
+        readonly reason: string;
+        readonly distractorLemma: string;
+      }[];
     };
 
 export interface PublicVocabularyGenerationResponse extends Omit<
@@ -100,6 +104,13 @@ export function toPublicExercisePipelineOutcome(
     stage: outcome.stage,
     ...(outcome.compositionFailure ? { compositionCode: outcome.compositionFailure.code } : {}),
     structuralReasons: Object.freeze([...outcome.structuralReasons]),
+    ...(outcome.semanticIssues
+      ? {
+          semanticIssues: Object.freeze(
+            outcome.semanticIssues.map((issue) => Object.freeze({ ...issue })),
+          ),
+        }
+      : {}),
   });
 }
 

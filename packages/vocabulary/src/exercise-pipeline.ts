@@ -10,12 +10,17 @@ import {
   evaluatePedagogicalReadiness,
   type PedagogicalReadinessIssue,
 } from "./pedagogical-readiness.js";
+import {
+  screenExerciseSemanticUniqueness,
+  type SemanticUniquenessIssue,
+  type SemanticUniquenessStatus,
+} from "./semantic-uniqueness.js";
 
 export interface PublishExerciseOutcome {
   readonly outcome: "publish";
   readonly pipeline: "verified-exercise-pipeline-v1";
   readonly exercise: VerifiedExercise;
-  readonly semanticUniqueness: "not-proven";
+  readonly semanticUniqueness: "evidence-screened";
 }
 
 export interface RequestAiFallbackOutcome {
@@ -24,16 +29,17 @@ export interface RequestAiFallbackOutcome {
   readonly exercise: VerifiedExercise;
   readonly request: AiFallbackRequest;
   readonly readinessIssues: readonly PedagogicalReadinessIssue[];
-  readonly semanticUniqueness: "not-proven";
+  readonly semanticUniqueness: "evidence-screened";
 }
 
 export interface RejectExerciseOutcome {
   readonly outcome: "reject";
   readonly pipeline: "verified-exercise-pipeline-v1";
-  readonly stage: "composition" | "structural-policy";
+  readonly stage: "composition" | "structural-policy" | "semantic-policy";
   readonly compositionFailure?: ExerciseCompositionFailure;
   readonly structuralReasons: readonly ExerciseValidationReason[];
-  readonly semanticUniqueness: "not-proven";
+  readonly semanticUniqueness: SemanticUniquenessStatus;
+  readonly semanticIssues?: readonly SemanticUniquenessIssue[];
 }
 
 export type ExercisePipelineOutcome =
@@ -58,6 +64,25 @@ export function runVerifiedExercisePipeline(
     return rejectComposition(composition);
   }
 
+  const selectedDistractorIds = new Set(composition.distractorCandidateIds);
+  const semanticScreen = screenExerciseSemanticUniqueness({
+    exercise: composition,
+    answer: input.answer.candidate,
+    distractors: input.distractorPool
+      .filter(({ candidate }) => selectedDistractorIds.has(candidate.candidateId))
+      .map(({ candidate }) => candidate),
+  });
+  if (semanticScreen.status === "failed-screening") {
+    return Object.freeze({
+      outcome: "reject",
+      pipeline: "verified-exercise-pipeline-v1",
+      stage: "semantic-policy",
+      structuralReasons: Object.freeze([]),
+      semanticUniqueness: semanticScreen.status,
+      semanticIssues: semanticScreen.issues,
+    });
+  }
+
   const readiness = evaluatePedagogicalReadiness(composition);
   const fallbackDecision = decideAiFallback(readiness);
 
@@ -66,7 +91,7 @@ export function runVerifiedExercisePipeline(
       outcome: "publish",
       pipeline: "verified-exercise-pipeline-v1",
       exercise: composition,
-      semanticUniqueness: "not-proven",
+      semanticUniqueness: semanticScreen.status,
     });
   }
 
@@ -77,7 +102,7 @@ export function runVerifiedExercisePipeline(
       exercise: composition,
       request: fallbackDecision.request,
       readinessIssues: readiness.ready ? Object.freeze([]) : readiness.issues,
-      semanticUniqueness: "not-proven",
+      semanticUniqueness: semanticScreen.status,
     });
   }
 

@@ -34,7 +34,7 @@ describe("vocabulary generation response contract", () => {
       outcome: "publish",
       pipeline: "verified-exercise-pipeline-v1",
       exercise: exercise(),
-      semanticUniqueness: "not-proven",
+      semanticUniqueness: "evidence-screened",
     };
 
     const result = toPublicExercisePipelineOutcome(outcome);
@@ -74,13 +74,13 @@ describe("vocabulary generation response contract", () => {
         },
       },
       readinessIssues: [],
-      semanticUniqueness: "not-proven",
+      semanticUniqueness: "evidence-screened",
     };
 
     expect(toPublicExercisePipelineOutcome(outcome)).toEqual({
       outcome: "request-ai-fallback",
       pipeline: "verified-exercise-pipeline-v1",
-      semanticUniqueness: "not-proven",
+      semanticUniqueness: "evidence-screened",
       operation: "rewrite-context-only",
       requestId: "request:1",
       triggeringReasons: ["context-too-short"],
