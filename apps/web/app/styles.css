@@ -199,6 +199,20 @@ h2 {
 .recent-practice li > span:last-child {
   color: #aeb4bd;
 }
+.adaptive-review-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #c6ff48;
+  border-radius: 0.75rem;
+  background: rgb(198 255 72 / 7%);
+}
+.adaptive-review-callout p {
+  color: #dce0e4;
+  font-weight: 700;
+}
 .mode-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -793,6 +807,7 @@ select:focus-visible {
     grid-template-columns: 1fr;
   }
   .recent-practice li,
+  .adaptive-review-callout,
   .result-actions {
     align-items: stretch;
     flex-direction: column;

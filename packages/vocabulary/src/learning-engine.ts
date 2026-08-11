@@ -52,8 +52,8 @@ export class LearningEngineError extends Error {
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const SUCCESS_INTERVALS_DAYS = Object.freeze([1, 3, 7, 14, 30, 60, 120, 180]);
 
-function boundedIdentifier(value: string): boolean {
-  return value.trim().length > 0 && value.length <= 200;
+function boundedIdentifier(value: string, maximum = 200): boolean {
+  return value.trim().length > 0 && value.length <= maximum;
 }
 
 function validInstant(value: string): boolean {
@@ -67,7 +67,7 @@ function validateEvent(event: LearningEvent): void {
     throw new LearningEngineError("UNSUPPORTED_VERSION");
   }
   if (
-    !boundedIdentifier(event.eventId) ||
+    !boundedIdentifier(event.eventId, 512) ||
     !boundedIdentifier(event.knowledgeId) ||
     !boundedIdentifier(event.contextId) ||
     !validInstant(event.occurredAt) ||

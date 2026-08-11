@@ -30,6 +30,7 @@ import {
   readCompletedStudySessions,
   type CompletedStudySession,
 } from "./local-study-history";
+import { planLocalAdaptiveReview } from "./adaptive-local-review";
 
 type Mode = "words" | "topic" | "photo";
 type ReviewMode = "test" | "study";
@@ -273,6 +274,11 @@ export function CaptureWorkspace() {
   const [restorableSession, setRestorableSession] = useState<InterruptedStudySession>();
   const [restoredSession, setRestoredSession] = useState(false);
   const [completedSessions, setCompletedSessions] = useState<readonly CompletedStudySession[]>([]);
+  const adaptiveReviewPlan = planLocalAdaptiveReview(
+    completedSessions,
+    new Date().toISOString(),
+    10,
+  );
   useEffect(() => {
     setVisualCluesEnabled(readVisualCluesEnabled(window.localStorage));
     setRestorableSession(readInterruptedStudySession(window.localStorage));
@@ -621,6 +627,30 @@ export function CaptureWorkspace() {
     setRestoredSession(false);
   }
 
+  function startAdaptiveReview() {
+    if (!adaptiveReviewPlan) return;
+    clearInterruptedStudySession(window.localStorage);
+    const plannedTerms = adaptiveReviewPlan.items.map(({ candidate }) => candidate.term);
+    setCandidates(adaptiveReviewPlan.candidatePool);
+    setSelected(new Set(plannedTerms));
+    setTitle("Adaptive review");
+    setLevel(completedSessions[0]?.level ?? "B1");
+    setQuestionIndex(0);
+    setChosenTerm(undefined);
+    setFeedback(undefined);
+    setScore(0);
+    setAttempts([]);
+    setSessionComplete(false);
+    setReviewing(true);
+    setTraining(true);
+    setStudySessionId(`adaptive:${crypto.randomUUID()}`);
+    setMeaningCorrectionTerm(undefined);
+    setMeaningCorrectionStatus(undefined);
+    setRestorableSession(undefined);
+    setRestoredSession(false);
+    setError(undefined);
+  }
+
   function discardInterruptedSession() {
     clearInterruptedStudySession(window.localStorage);
     setRestorableSession(undefined);
@@ -807,6 +837,17 @@ export function CaptureWorkspace() {
                   <h3 id="recent-practice-title">Recent practice</h3>
                   <p>Attempt history only — mastery is calculated separately over time.</p>
                 </div>
+                {adaptiveReviewPlan && (
+                  <div className="adaptive-review-callout">
+                    <p>
+                      {adaptiveReviewPlan.counts.due} due · {adaptiveReviewPlan.counts.new} new ·{" "}
+                      {adaptiveReviewPlan.counts.early} early review
+                    </p>
+                    <button className="primary-action" type="button" onClick={startAdaptiveReview}>
+                      Start adaptive review
+                    </button>
+                  </div>
+                )}
                 <ol>
                   {completedSessions.slice(0, 3).map((session) => (
                     <li key={session.sessionId}>

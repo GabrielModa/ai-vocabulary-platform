@@ -348,6 +348,35 @@ describe("VocabularyPage", () => {
     expect(screen.getByText(/Attempt history only/u)).toBeInTheDocument();
     expect(screen.queryByText(/mastered/u)).not.toBeInTheDocument();
   });
+  it("starts a local adaptive review without generation when visual clues are disabled", () => {
+    const completedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1_000).toISOString();
+    appendCompletedStudySession(window.localStorage, {
+      version: 1,
+      sessionId: "adaptive-history-1",
+      completedAt,
+      title: generatedSet.title,
+      level: "B1",
+      candidates: generatedSet.candidates,
+      selectedTerms: generatedSet.candidates.map(({ term }) => term),
+      attempts: [
+        { term: "pitch", chosenTerm: "pass", correct: false },
+        { term: "pass", chosenTerm: "pass", correct: true },
+        { term: "close match", chosenTerm: "close match", correct: true },
+        { term: "goalkeeper", chosenTerm: "goalkeeper", correct: true },
+      ],
+      score: { correct: 3, attempted: 4, percentage: 75 },
+    });
+
+    render(<VocabularyPage />);
+    expect(screen.getByText("4 due · 0 new · 0 early review")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Use visual clues/u }));
+    vi.mocked(fetch).mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Start adaptive review" }));
+
+    expect(screen.getByText("Question 1 of 4")).toBeInTheDocument();
+    expect(screen.getByText("Training without visual clues.")).toBeInTheDocument();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
   it("requires explicit confirmation for an ambiguous selected meaning", async () => {
     vi.stubGlobal(
       "fetch",
