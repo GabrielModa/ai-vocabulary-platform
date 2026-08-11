@@ -23,6 +23,13 @@ const generated: EnrichedVocabularySet = {
     averageScore: 80,
     qualityBand: "high",
   },
+  generationFulfillment: {
+    status: "exact",
+    requestedCount: 1,
+    deliveredCount: 1,
+    deficitCount: 0,
+    attempts: 1,
+  },
   rejectedCandidates: [],
   candidates: [
     {

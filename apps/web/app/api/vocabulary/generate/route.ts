@@ -15,6 +15,7 @@ import {
   loadLocalLexicalLookup,
   loadLocalPronunciationLookup,
 } from "./lexical-enrichment";
+import { generateWithDeficitReplacement } from "./replacement-generation";
 
 const generator = new OllamaVocabularyGenerator({
   ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
@@ -24,23 +25,27 @@ const generator = new OllamaVocabularyGenerator({
 async function generate(input: unknown) {
   const request = localVocabularyRequestSchema.parse(input);
 
-  const [generated, lexicalLookup, frequencyLookup, exampleLookup, pronunciationLookup] =
-    await Promise.all([
-      generator.generate(request),
-      loadLocalLexicalLookup(),
-      loadLocalFrequencyLookup(),
-      loadLocalExampleLookup(),
-      loadLocalPronunciationLookup(),
-    ]);
+  const lookups = Promise.all([
+    loadLocalLexicalLookup(),
+    loadLocalFrequencyLookup(),
+    loadLocalExampleLookup(),
+    loadLocalPronunciationLookup(),
+  ]);
 
-  return enrichVocabularySet(
-    generated,
-    lexicalLookup,
-    frequencyLookup,
-    exampleLookup,
-    pronunciationLookup,
-    { topic: request.topic, level: request.level },
-  );
+  return generateWithDeficitReplacement(request, {
+    suggest: (generationRequest, options) => generator.generate(generationRequest, options),
+    enrich: async (generated) => {
+      const [lexicalLookup, frequencyLookup, exampleLookup, pronunciationLookup] = await lookups;
+      return enrichVocabularySet(
+        generated,
+        lexicalLookup,
+        frequencyLookup,
+        exampleLookup,
+        pronunciationLookup,
+        { topic: request.topic, level: request.level },
+      );
+    },
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {

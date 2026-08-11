@@ -48,6 +48,9 @@ const suggestionSetSchema = z.object({
 });
 export type LocalVocabularyRequest = z.infer<typeof localVocabularyRequestSchema>;
 export type LocalVocabularySet = z.infer<typeof localVocabularySetSchema>;
+export interface LocalVocabularyGenerationOptions {
+  readonly excludedTerms?: readonly string[];
+}
 export type OllamaFetch = (input: string, init: RequestInit) => Promise<Response>;
 const cefrGuidance: Record<LocalVocabularyRequest["level"], string> = {
   A2: "Use frequent concrete words and short simple-present or simple-past sentences.",
@@ -118,13 +121,26 @@ export class OllamaVocabularyGenerator {
       readonly fetch?: OllamaFetch;
     } = {},
   ) {}
-  async generate(input: unknown): Promise<LocalVocabularySet> {
+  async generate(
+    input: unknown,
+    options: LocalVocabularyGenerationOptions = {},
+  ): Promise<LocalVocabularySet> {
     const request = localVocabularyRequestSchema.safeParse(input);
     if (!request.success) throw new OllamaVocabularyError("INVALID_OUTPUT");
+    const initiallyExcluded = [
+      ...new Set(
+        (options.excludedTerms ?? []).map((term) =>
+          term.normalize("NFKC").toLocaleLowerCase("en-US").trim(),
+        ),
+      ),
+    ]
+      .filter(Boolean)
+      .sort();
     const cacheKey = [
       request.data.topic.normalize("NFKC").toLocaleLowerCase("en-US").trim(),
       request.data.level,
       String(request.data.requestedCount),
+      initiallyExcluded.join(","),
     ].join(":");
     const cached = this.cache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.value;
@@ -140,7 +156,7 @@ export class OllamaVocabularyGenerator {
           batch = await this.generateBatch(
             request.data,
             batchCount,
-            candidates.map(({ term }) => term),
+            [...initiallyExcluded, ...candidates.map(({ term }) => term)],
             fetcher,
           );
         } catch (error) {

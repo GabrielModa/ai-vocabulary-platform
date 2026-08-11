@@ -30,6 +30,13 @@ const vocabularySet: EnrichedVocabularySet = {
     averageScore: 45,
     qualityBand: "low",
   },
+  generationFulfillment: {
+    status: "exact",
+    requestedCount: 1,
+    deliveredCount: 1,
+    deficitCount: 0,
+    attempts: 1,
+  },
   rejectedCandidates: [],
   candidates: [
     {

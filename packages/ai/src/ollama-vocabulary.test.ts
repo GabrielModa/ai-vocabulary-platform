@@ -93,6 +93,28 @@ describe("Ollama vocabulary provider", () => {
     expect(result.candidates).toHaveLength(10);
     expect(calls).toBe(1);
   });
+
+  it("excludes previously evaluated terms and isolates that request in the cache", async () => {
+    const bodies: string[] = [];
+    const generator = new OllamaVocabularyGenerator({
+      fetch: (_input, init) => {
+        const body = typeof init.body === "string" ? init.body : "";
+        bodies.push(body);
+        return response({
+          candidates: [
+            { term: "referee", type: "noun" },
+            { term: "tackle", type: "verb" },
+          ],
+        });
+      },
+    });
+
+    await generator.generate(request, { excludedTerms: ["pitch", "pass"] });
+    await generator.generate(request, { excludedTerms: ["pitch", "pass"] });
+
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toContain("Avoid these existing terms: pass, pitch");
+  });
   it("rejects wrong counts and unavailable runtime safely", async () => {
     const wrong = new OllamaVocabularyGenerator({
       fetch: () => response({ title: "x", candidates: [] }),

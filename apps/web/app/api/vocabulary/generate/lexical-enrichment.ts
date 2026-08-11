@@ -66,11 +66,21 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly learningEvidence?: CandidateLearningEvidence;
 };
 
+export interface GenerationFulfillment {
+  readonly status: "exact" | "partial";
+  readonly requestedCount: number;
+  readonly deliveredCount: number;
+  readonly deficitCount: number;
+  readonly attempts: number;
+  readonly message?: string;
+}
+
 export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candidates"> {
   readonly candidates: readonly EnrichedCandidate[];
   readonly candidateStrategy: "suggest-verify-select";
   readonly rankingStrategy: "deterministic-weighted-ranking";
   readonly qualitySummary: SetQualityReport;
+  readonly generationFulfillment: GenerationFulfillment;
   readonly rejectedCandidates: readonly {
     readonly term: string;
     readonly normalizedLemma?: string;
@@ -525,15 +535,24 @@ export async function enrichVocabularySet(
       : [];
   });
 
+  const qualitySummary = evaluateSetQuality({
+    requestedCount: vocabularySet.candidates.length,
+    candidates: [...qualityByCandidateId.values()],
+  });
+
   return {
     ...vocabularySet,
     candidates,
     candidateStrategy: pipeline.strategy,
     rankingStrategy: ranking.strategy,
-    qualitySummary: evaluateSetQuality({
-      requestedCount: vocabularySet.candidates.length,
-      candidates: [...qualityByCandidateId.values()],
-    }),
+    qualitySummary,
+    generationFulfillment: {
+      status: qualitySummary.deficitCount === 0 ? "exact" : "partial",
+      requestedCount: qualitySummary.requestedCount,
+      deliveredCount: qualitySummary.usableCount,
+      deficitCount: qualitySummary.deficitCount,
+      attempts: 1,
+    },
     rejectedCandidates: pipeline.rejected,
   };
 }
