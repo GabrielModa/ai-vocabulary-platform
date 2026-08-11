@@ -77,6 +77,9 @@ export interface ReviewCandidate {
   readonly senseId?: string;
   readonly lexicalProvenance?: ContentProvenance;
   readonly lexicalSenses?: readonly LexicalSense[];
+  readonly verifiedExamplesBySenseId?: Readonly<
+    Record<string, readonly { readonly sentence: string }[]>
+  >;
   readonly exerciseKind?: ExerciseKind;
   readonly exercisePipelineOutcome?: ReviewExercisePipelineOutcome;
 }
@@ -100,6 +103,8 @@ export function resolveCandidateSense(
 ): ReviewCandidate {
   const sense = compatibleLexicalSenses(candidate).find((item) => item.senseId === senseId);
   if (!sense?.definition) throw new Error("Selected sense is not compatible");
+  const verifiedExamples = candidate.verifiedExamplesBySenseId?.[senseId] ?? [];
+  const contexts = verifiedExamples.slice(0, 3).map(({ sentence }) => sentence);
   return {
     ...candidate,
     meaning: sense.definition,
@@ -108,6 +113,7 @@ export function resolveCandidateSense(
     lexicalValidationStatus: "verified",
     senseId: sense.senseId,
     lexicalProvenance: sense.provenance,
+    ...(contexts.length > 0 ? { example: contexts[0] ?? candidate.example, contexts } : {}),
   };
 }
 

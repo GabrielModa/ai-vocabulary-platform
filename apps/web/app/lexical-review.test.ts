@@ -91,6 +91,23 @@ describe("lexical review", () => {
     );
   });
 
+  it("uses examples verified for the learner-selected sense", () => {
+    const withExamples: ReviewCandidate = {
+      ...candidate,
+      verifiedExamplesBySenseId: {
+        "sound-n": [
+          { sentence: "The singer changed the pitch." },
+          { sentence: "This instrument has a low pitch." },
+        ],
+      },
+    };
+
+    expect(resolveCandidateSense(withExamples, "sound-n")).toMatchObject({
+      example: "The singer changed the pitch.",
+      contexts: ["The singer changed the pitch.", "This instrument has a low pitch."],
+    });
+  });
+
   it("prioritizes unique distractors with the same word class", () => {
     expect(
       buildAnswerOptions(candidate, [

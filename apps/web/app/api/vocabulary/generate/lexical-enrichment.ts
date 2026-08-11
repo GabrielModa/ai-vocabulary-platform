@@ -200,6 +200,7 @@ function adaptCandidate(
     ...(firstExample
       ? {
           example: firstExample.sentence,
+          contexts: examples.slice(0, 3).map(({ sentence }) => sentence),
           verifiedExamples: examples,
           exampleProvenance: firstExample.provenance,
         }

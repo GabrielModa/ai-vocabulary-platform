@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LocalVocabularySet } from "@vocabulary/ai";
 import {
   enrichVocabularySet,
+  type ExampleLookup,
   type FrequencyLookup,
   type LexicalLookup,
   type PronunciationLookup,
@@ -40,6 +41,10 @@ function pronunciationByWord(
   results: Readonly<Record<string, readonly unknown[]>>,
 ): PronunciationLookup {
   return { lookup: ({ word }) => Promise.resolve(results[word] ?? []) };
+}
+
+function examplesBySense(results: Readonly<Record<string, readonly unknown[]>>): ExampleLookup {
+  return { find: ({ senseId }) => Promise.resolve(results[senseId] ?? []) };
 }
 
 const provenance = {
@@ -104,6 +109,35 @@ describe("server lexical enrichment", () => {
       rank: 1,
       rankingScore: 40,
       rankingContributions: [{ reason: "verified-sense", points: 40 }],
+    });
+  });
+
+  it("uses verified examples as the primary example and study contexts", async () => {
+    const examples = [
+      "My uncle called today.",
+      "Her uncle lives nearby.",
+      "I thanked my uncle.",
+    ].map((sentence, index) => ({
+      id: `${familySense.senseId}:example:${String(index + 1)}`,
+      senseId: familySense.senseId,
+      sentence,
+      provenance: {
+        ...provenance,
+        sourceId: `${familySense.senseId}:example:${String(index + 1)}`,
+      },
+    }));
+
+    const enriched = await enrichVocabularySet(
+      generated,
+      lookup([familySense]),
+      undefined,
+      examplesBySense({ [familySense.senseId]: examples }),
+    );
+
+    expect(enriched.candidates[0]).toMatchObject({
+      example: examples[0]?.sentence,
+      contexts: examples.map(({ sentence }) => sentence),
+      verifiedExamples: examples,
     });
   });
 

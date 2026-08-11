@@ -3,13 +3,11 @@ import {
   OllamaVocabularyError,
   OllamaVocabularyGenerator,
 } from "@vocabulary/ai";
-import { OllamaContextualSenseSelector } from "../../../../src/ollama-contextual-sense-selector";
 import {
   getStudySessionRuntime,
   StudySessionRuntimeUnavailableError,
 } from "../../../../src/study-session-runtime-registry";
 import { createAuthenticatedVocabularyGenerationHandler } from "./authenticated-generation";
-import { resolveVocabularySetContextually } from "./contextual-lexical-enrichment";
 import {
   enrichVocabularySet,
   loadLocalExampleLookup,
@@ -18,12 +16,13 @@ import {
   loadLocalPronunciationLookup,
 } from "./lexical-enrichment";
 
+const generator = new OllamaVocabularyGenerator({
+  ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
+  ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
+});
+
 async function generate(input: unknown) {
   const request = localVocabularyRequestSchema.parse(input);
-  const generator = new OllamaVocabularyGenerator({
-    ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
-    ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
-  });
 
   const [generated, lexicalLookup, frequencyLookup, exampleLookup, pronunciationLookup] =
     await Promise.all([
@@ -34,26 +33,13 @@ async function generate(input: unknown) {
       loadLocalPronunciationLookup(),
     ]);
 
-  const enriched = await enrichVocabularySet(
+  return enrichVocabularySet(
     generated,
     lexicalLookup,
     frequencyLookup,
     exampleLookup,
     pronunciationLookup,
   );
-  const selector = new OllamaContextualSenseSelector({
-    ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
-    ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
-  });
-
-  return resolveVocabularySetContextually(enriched, {
-    selector,
-    context: {
-      topic: request.topic,
-      learnerLevel: request.level,
-      locale: "en-US",
-    },
-  });
 }
 
 export async function POST(request: Request): Promise<Response> {

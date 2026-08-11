@@ -16,24 +16,9 @@ describe("Ollama vocabulary provider", () => {
       fetch: (input, init) => {
         calls.push({ input, init });
         return response({
-          title: "Football",
           candidates: [
-            {
-              term: "pitch",
-              meaning: "playing surface",
-              type: "noun",
-              example: "The team entered the pitch.",
-              challenge: "The team entered the ___.",
-              contexts: ["The pitch is wet.", "They entered the pitch.", "The pitch is wide."],
-            },
-            {
-              term: "pass",
-              meaning: "send the ball",
-              type: "verb",
-              example: "Pass the ball to me.",
-              challenge: "Please ___ the ball.",
-              contexts: ["Pass the ball.", "She made a pass.", "The pass was accurate."],
-            },
+            { term: "pitch", type: "noun" },
+            { term: "pass", type: "verb" },
           ],
         });
       },
@@ -44,6 +29,69 @@ describe("Ollama vocabulary provider", () => {
     const body = calls[0]?.init.body;
     expect(typeof body === "string" ? body : "").toContain("exactly 2 unique B1");
     expect(typeof body === "string" ? body : "").toContain("practical everyday vocabulary");
+    expect(typeof body === "string" ? body : "").toContain("dictionary headwords");
+    const requestBody = JSON.parse(typeof body === "string" ? body : "{}") as Record<
+      string,
+      unknown
+    >;
+    expect(requestBody.format).toMatchObject({ type: "object", required: ["candidates"] });
+    expect(requestBody.format).toMatchObject({
+      properties: { candidates: { minItems: 2, maxItems: 2 } },
+    });
+    expect(requestBody.options).toMatchObject({ num_predict: 160 });
+    expect(typeof body === "string" ? body : "").not.toContain("contexts");
+  });
+
+  it("returns honest pending fields and caches an identical request in memory", async () => {
+    let calls = 0;
+    const generator = new OllamaVocabularyGenerator({
+      fetch: () => {
+        calls += 1;
+        return response({
+          candidates: [
+            { term: "pitch", type: "noun" },
+            { term: "pass", type: "verb" },
+          ],
+        });
+      },
+    });
+
+    const first = await generator.generate(request);
+    const second = await generator.generate({ ...request });
+
+    expect(calls).toBe(1);
+    expect(second).toBe(first);
+    expect(first.title).toBe("football vocabulary");
+    expect(first.candidates[0]).toMatchObject({
+      term: "pitch",
+      meaning: "Meaning pending lexical verification.",
+      example: "A verified example is not available yet.",
+      challenge: "Confirm the intended meaning before training.",
+    });
+  });
+
+  it("requests ten candidates in one bounded inference", async () => {
+    let calls = 0;
+    const generator = new OllamaVocabularyGenerator({
+      fetch: (_input, init) => {
+        calls += 1;
+        if (typeof init.body !== "string") throw new Error("Expected a JSON request body");
+        const body = JSON.parse(init.body) as {
+          format: { properties: { candidates: { minItems: number; maxItems: number } } };
+        };
+        expect(body.format.properties.candidates).toMatchObject({ minItems: 10, maxItems: 10 });
+        return response({
+          candidates: Array.from({ length: 10 }, (_, index) => ({
+            term: `term-${String(index + 1)}`,
+            type: "noun",
+          })),
+        });
+      },
+    });
+
+    const result = await generator.generate({ topic: "work", requestedCount: 10, level: "B1" });
+    expect(result.candidates).toHaveLength(10);
+    expect(calls).toBe(1);
   });
   it("rejects wrong counts and unavailable runtime safely", async () => {
     const wrong = new OllamaVocabularyGenerator({

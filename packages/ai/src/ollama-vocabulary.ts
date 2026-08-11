@@ -30,6 +30,22 @@ export const localVocabularySetSchema = z.object({
     .min(1)
     .max(50),
 });
+const suggestedCandidateSchema = z.object({
+  term: z.string().trim().min(1).max(200),
+  type: z.enum([
+    "noun",
+    "verb",
+    "adjective",
+    "adverb",
+    "collocation",
+    "phrasal-verb",
+    "expression",
+    "other",
+  ]),
+});
+const suggestionSetSchema = z.object({
+  candidates: z.array(suggestedCandidateSchema).min(1).max(20),
+});
 export type LocalVocabularyRequest = z.infer<typeof localVocabularyRequestSchema>;
 export type LocalVocabularySet = z.infer<typeof localVocabularySetSchema>;
 export type OllamaFetch = (input: string, init: RequestInit) => Promise<Response>;
@@ -40,6 +56,52 @@ const cefrGuidance: Record<LocalVocabularyRequest["level"], string> = {
   C1: "Use nuanced, less frequent vocabulary and complex but natural sentences.",
   C2: "Use highly precise, idiomatic, or specialized vocabulary with sophisticated contexts.",
 };
+const PENDING_MEANING = "Meaning pending lexical verification.";
+const PENDING_EXAMPLE = "A verified example is not available yet.";
+const PENDING_CHALLENGE = "Confirm the intended meaning before training.";
+const CACHE_TTL_MS = 15 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 50;
+
+interface CacheEntry {
+  readonly expiresAt: number;
+  readonly value: LocalVocabularySet;
+}
+
+function suggestionFormat(batchCount: number) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["candidates"],
+    properties: {
+      candidates: {
+        type: "array",
+        minItems: batchCount,
+        maxItems: batchCount,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["term", "type"],
+          properties: {
+            term: { type: "string" },
+            type: {
+              type: "string",
+              enum: [
+                "noun",
+                "verb",
+                "adjective",
+                "adverb",
+                "collocation",
+                "phrasal-verb",
+                "expression",
+                "other",
+              ],
+            },
+          },
+        },
+      },
+    },
+  } as const;
+}
 export class OllamaVocabularyError extends Error {
   constructor(readonly code: "UNAVAILABLE" | "INVALID_OUTPUT") {
     super(`Local vocabulary generation failed: ${code}`);
@@ -47,6 +109,8 @@ export class OllamaVocabularyError extends Error {
   }
 }
 export class OllamaVocabularyGenerator {
+  private readonly cache = new Map<string, CacheEntry>();
+
   constructor(
     private readonly options: {
       readonly baseUrl?: string;
@@ -57,11 +121,19 @@ export class OllamaVocabularyGenerator {
   async generate(input: unknown): Promise<LocalVocabularySet> {
     const request = localVocabularyRequestSchema.safeParse(input);
     if (!request.success) throw new OllamaVocabularyError("INVALID_OUTPUT");
+    const cacheKey = [
+      request.data.topic.normalize("NFKC").toLocaleLowerCase("en-US").trim(),
+      request.data.level,
+      String(request.data.requestedCount),
+    ].join(":");
+    const cached = this.cache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    if (cached) this.cache.delete(cacheKey);
     const fetcher = this.options.fetch ?? globalThis.fetch;
     const candidates: LocalVocabularySet["candidates"] = [];
     let title = `${request.data.topic} vocabulary`;
     while (candidates.length < request.data.requestedCount) {
-      const batchCount = Math.min(8, request.data.requestedCount - candidates.length);
+      const batchCount = Math.min(20, request.data.requestedCount - candidates.length);
       let batch: LocalVocabularySet | undefined;
       for (let attempt = 0; attempt < 2 && !batch; attempt += 1) {
         try {
@@ -82,7 +154,14 @@ export class OllamaVocabularyGenerator {
     }
     const terms = candidates.map(({ term }) => term.toLocaleLowerCase("en-US"));
     if (new Set(terms).size !== terms.length) throw new OllamaVocabularyError("INVALID_OUTPUT");
-    return { title, candidates };
+    const value = { title, candidates };
+    this.cache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, value });
+    while (this.cache.size > CACHE_MAX_ENTRIES) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest === undefined) break;
+      this.cache.delete(oldest);
+    }
+    return value;
   }
 
   private async generateBatch(
@@ -99,16 +178,16 @@ export class OllamaVocabularyGenerator {
         body: JSON.stringify({
           model: this.options.model ?? "qwen2.5:3b",
           stream: false,
-          format: "json",
-          options: { temperature: 0.2 },
+          format: suggestionFormat(batchCount),
+          options: { temperature: 0.2, num_predict: 96 + batchCount * 32 },
           messages: [
             {
               role: "system",
-              content: `You create accurate English learning content. Return JSON only. Apply CEFR strictly to both vocabulary difficulty and sentence grammar. ${cefrGuidance[request.level]} Each challenge must contain exactly one ___ replacing the target term. Never include phonetic transcriptions.`,
+              content: `You suggest useful English vocabulary candidates. Return JSON only. Apply CEFR strictly to vocabulary difficulty. Never provide definitions, examples, exercises, pronunciation, or other facts.`,
             },
             {
               role: "user",
-              content: `Create exactly ${String(batchCount)} unique ${request.level} English vocabulary items about ${request.topic}. ${cefrGuidance[request.level]} Return {title,candidates:[{term,meaning,type,example,challenge,contexts}]}. contexts must contain exactly three natural ${request.level} sentences using the term in genuinely different situations. Avoid these existing terms: ${excludedTerms.length ? excludedTerms.join(", ") : "none"}. Balance useful word classes and expressions.`,
+              content: `Suggest exactly ${String(batchCount)} unique ${request.level} English terms about ${request.topic}. ${cefrGuidance[request.level]} Prefer useful single-word dictionary headwords; use a multiword term only when it is an established lexical entry. Return {candidates:[{term,type}]}. Avoid these existing terms: ${excludedTerms.length ? excludedTerms.join(", ") : "none"}. Balance useful word classes and expressions.`,
             },
           ],
         }),
@@ -127,11 +206,23 @@ export class OllamaVocabularyGenerator {
     } catch {
       throw new OllamaVocabularyError("INVALID_OUTPUT");
     }
-    const result = localVocabularySetSchema.safeParse(decoded);
+    const result = suggestionSetSchema.safeParse(decoded);
     if (!result.success || result.data.candidates.length !== batchCount)
       throw new OllamaVocabularyError("INVALID_OUTPUT");
     const terms = result.data.candidates.map(({ term }) => term.toLocaleLowerCase("en-US"));
-    if (new Set(terms).size !== terms.length) throw new OllamaVocabularyError("INVALID_OUTPUT");
-    return result.data;
+    const excluded = new Set(
+      excludedTerms.map((term) => term.normalize("NFKC").toLocaleLowerCase("en-US").trim()),
+    );
+    if (new Set(terms).size !== terms.length || terms.some((term) => excluded.has(term)))
+      throw new OllamaVocabularyError("INVALID_OUTPUT");
+    return {
+      title: `${request.topic} vocabulary`,
+      candidates: result.data.candidates.map((candidate) => ({
+        ...candidate,
+        meaning: PENDING_MEANING,
+        example: PENDING_EXAMPLE,
+        challenge: PENDING_CHALLENGE,
+      })),
+    };
   }
 }
