@@ -22,7 +22,9 @@ optional image-worker startup, local authentication, and Next.js.
 
 The launcher keeps Windows dependency and port preflight, waits for HTTP readiness, reports image
 health when available, opens the browser only after readiness, and stops its owned runtime on exit.
-It does not require the image venv or model, so a learner can explicitly test without images.
+It does not require the image venv or model, so a learner can explicitly test without images. It
+invokes `pnpm.cmd` directly so pnpm can honor the repository-pinned version instead of inheriting an
+incompatible global Corepack version, and aborts readiness waiting if the runtime exits.
 
 ## Consequences
 

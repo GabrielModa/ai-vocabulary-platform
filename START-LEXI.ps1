@@ -29,9 +29,10 @@ function Test-Port([int]$Port) {
   } finally { $client.Dispose() }
 }
 
-function Wait-Http([string]$Url, [int]$TimeoutSeconds) {
+function Wait-Http([string]$Url, [int]$TimeoutSeconds, [System.Diagnostics.Process]$Process = $null) {
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
   while ((Get-Date) -lt $deadline) {
+    if ($Process -and $Process.HasExited) { return $false }
     if (Test-Http $Url) { return $true }
     Start-Sleep -Milliseconds 500
   }
@@ -53,10 +54,10 @@ function Start-LocalProcess([string]$FilePath, [string]$Arguments, [string]$Work
 
 try {
   Assert-Command "node"
-  Assert-Command "corepack.cmd"
+  Assert-Command "pnpm.cmd"
   Assert-Command "ollama"
   $nodeMajor = [int]((& node --version).TrimStart("v").Split(".")[0])
-  $pnpmVersion = & corepack.cmd pnpm --version
+  $pnpmVersion = & pnpm.cmd --version
   $pnpmMajor = [int]($pnpmVersion.Split(".")[0])
   if ($nodeMajor -lt 22) { throw "Node.js 22 ou superior e obrigatorio; encontrado: $(& node --version)" }
   if ($pnpmMajor -lt 11) { throw "pnpm 11 ou superior e obrigatorio; encontrado: $pnpmVersion" }
@@ -67,9 +68,9 @@ try {
   }
 
   Write-Host "Iniciando runtime local completo (banco, migracoes, Ollama, imagens e web)..."
-  $corepack = (Get-Command "corepack.cmd").Source
-  $runtime = Start-LocalProcess $env:ComSpec "/d /s /c `"`"$corepack`" pnpm dev:local`"" $root
-  if (-not (Wait-Http $siteUrl 180)) {
+  $pnpm = (Get-Command "pnpm.cmd").Source
+  $runtime = Start-LocalProcess $env:ComSpec "/d /s /c `"`"$pnpm`" dev:local`"" $root
+  if (-not (Wait-Http $siteUrl 180 $runtime)) {
     if ($runtime.HasExited) { throw "Runtime local encerrou com codigo $($runtime.ExitCode)." }
     throw "Site nao respondeu dentro do prazo. Consulte os logs exibidos pelo runtime."
   }
