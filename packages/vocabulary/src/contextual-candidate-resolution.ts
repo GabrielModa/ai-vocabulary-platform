@@ -46,7 +46,9 @@ function selectedLexicalSense(
     confirmedBy:
       decision.decidedBy === "contextual-ai-selector"
         ? "contextual-ai-selection"
-        : "unique-provider-match",
+        : decision.decidedBy === "deterministic-context-selector"
+          ? "deterministic-context-selection"
+          : "unique-provider-match",
   });
 }
 

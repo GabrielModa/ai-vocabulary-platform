@@ -216,6 +216,47 @@ describe("server lexical enrichment", () => {
     expect(enriched.candidates[0]).not.toHaveProperty("senseId");
   });
 
+  it("resolves an explicit topic-bound sense without another model call", async () => {
+    const footballSense = {
+      ...familySense,
+      senseId: "oewn-football-penalty-n",
+      word: "penalty",
+      normalizedWord: "penalty",
+      definition: "A free kick awarded in football after a serious foul.",
+      provenance: { ...familySense.provenance, sourceId: "oewn-football-penalty-n" },
+    };
+    const punishmentSense = {
+      ...footballSense,
+      senseId: "oewn-punishment-penalty-n",
+      definition: "A punishment imposed for breaking a law or rule.",
+      provenance: { ...familySense.provenance, sourceId: "oewn-punishment-penalty-n" },
+    };
+    const vocabularySet: LocalVocabularySet = {
+      title: "football vocabulary",
+      candidates: [
+        {
+          term: "penalty",
+          meaning: "Meaning pending lexical verification.",
+          type: "noun",
+          example: "A verified example is not available yet.",
+          challenge: "Confirm the intended meaning before training.",
+        },
+      ],
+    };
+
+    const enriched = await enrichVocabularySet(
+      vocabularySet,
+      lookup([footballSense, punishmentSense]),
+    );
+
+    expect(enriched.candidates[0]).toMatchObject({
+      lexicalValidationStatus: "verified",
+      senseId: footballSense.senseId,
+      meaning: footballSense.definition,
+      lexicalProvenance: { provider: "open-english-wordnet", generated: false },
+    });
+  });
+
   it("marks missing facts as unavailable", async () => {
     const enriched = await enrichVocabularySet(generated, lookup([]));
     expect(enriched.candidates[0]).toMatchObject({

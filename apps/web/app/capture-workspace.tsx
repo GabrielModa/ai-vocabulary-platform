@@ -260,7 +260,6 @@ export function CaptureWorkspace() {
   const [selected, setSelected] = useState(() => new Set<string>());
   const [expandedMeanings, setExpandedMeanings] = useState(() => new Set<string>());
   const [selectedSenseIds, setSelectedSenseIds] = useState<Record<string, string>>({});
-  const [confirmedMeanings, setConfirmedMeanings] = useState(() => new Set<string>());
   const [loading, setLoading] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
   const [error, setError] = useState<string>();
@@ -364,7 +363,6 @@ export function CaptureWorkspace() {
       setSelected(new Set(preferredCandidates.map(({ term }) => term)));
       setExpandedMeanings(new Set());
       setSelectedSenseIds({});
-      setConfirmedMeanings(new Set());
       setLevel(requestedLevel);
       setReviewing(true);
       setReviewMode("test");
@@ -586,7 +584,6 @@ export function CaptureWorkspace() {
     setSessionComplete(false);
     setExpandedMeanings(new Set());
     setSelectedSenseIds({});
-    setConfirmedMeanings(new Set());
     setDraftId(undefined);
     setDraftExpiresAt(undefined);
     setStudySessionId(undefined);
@@ -678,7 +675,6 @@ export function CaptureWorkspace() {
       next.delete(candidate.term);
       return next;
     });
-    setConfirmedMeanings((current) => new Set(current).add(candidate.term));
   }
 
   const scorableAttempts = attempts.filter(({ voided }) => !voided);
@@ -1011,11 +1007,6 @@ export function CaptureWorkspace() {
                       >
                         Confirm meaning for {candidate.term}
                       </button>
-                    )}
-                    {confirmedMeanings.has(candidate.term) && (
-                      <span className="meaning-confirmed" role="status">
-                        Meaning confirmed
-                      </span>
                     )}
                     {needsConfirmation && expanded && (
                       <fieldset

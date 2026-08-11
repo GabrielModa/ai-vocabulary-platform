@@ -5,6 +5,8 @@ import {
   OewnExampleProvider,
   OewnLexicalProvider,
   rankLearningCandidates,
+  resolveCandidateContextually,
+  selectContextualSenseDeterministically,
   SubtlexFrequencyProvider,
   exampleContentSchema,
   frequencyContentSchema,
@@ -320,7 +322,7 @@ export async function enrichVocabularySet(
     generatedByKey.set(key, [...(generatedByKey.get(key) ?? []), candidate]);
   }
 
-  const pipeline = await buildVerifiedCandidatePipeline(
+  const verifiedPipeline = await buildVerifiedCandidatePipeline(
     vocabularySet.candidates.map((candidate) => ({
       term: candidate.term,
       proposedPartOfSpeech: candidate.type,
@@ -328,6 +330,29 @@ export async function enrichVocabularySet(
     })),
     lexicalLookup,
   );
+  const contextualCandidates = await Promise.all(
+    verifiedPipeline.candidates.map(async (candidate) => {
+      const resolution = await resolveCandidateContextually({
+        candidate,
+        context: {
+          topic: vocabularySet.title,
+          learnerLevel: "unspecified",
+          locale: "en-US",
+        },
+        selector: {
+          decidedBy: "deterministic-context-selector",
+          select: (request) => {
+            const selection = selectContextualSenseDeterministically(request);
+            return selection === undefined
+              ? Promise.reject(new Error("Context evidence is not decisive"))
+              : Promise.resolve(selection);
+          },
+        },
+      });
+      return resolution.ok && resolution.status === "resolved" ? resolution.candidate : candidate;
+    }),
+  );
+  const pipeline = { ...verifiedPipeline, candidates: contextualCandidates };
 
   const [frequencies, examplesBySenseId, pronunciations] = await Promise.all([
     Promise.all(

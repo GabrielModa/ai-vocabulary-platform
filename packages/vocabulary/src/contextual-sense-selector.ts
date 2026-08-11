@@ -29,7 +29,58 @@ export interface ContextualSenseSelectorRequest {
 }
 
 export interface ContextualSenseSelectorPort {
+  readonly decidedBy?: "deterministic-context-selector" | "contextual-ai-selector";
   select(request: ContextualSenseSelectorRequest): Promise<unknown>;
+}
+
+const CONTEXT_STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "for",
+  "in",
+  "of",
+  "on",
+  "the",
+  "to",
+  "vocabulary",
+  "with",
+]);
+
+function contextTokens(value: string): ReadonlySet<string> {
+  return new Set(
+    value
+      .normalize("NFKC")
+      .toLocaleLowerCase("en-US")
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((token) => token.length > 2 && !CONTEXT_STOP_WORDS.has(token)),
+  );
+}
+
+/** Selects only when one verified definition explicitly contains more topic terms than every peer. */
+export function selectContextualSenseDeterministically(
+  request: ContextualSenseSelectorRequest,
+): ContextualSenseSelection | undefined {
+  const topicTokens = contextTokens(request.context.topic);
+  if (topicTokens.size === 0) return undefined;
+
+  const scored = request.allowedSenses
+    .map((sense) => {
+      const definitionTokens = contextTokens(sense.definition);
+      const score = [...topicTokens].filter((token) => definitionTokens.has(token)).length;
+      return { sense, score };
+    })
+    .sort((left, right) => right.score - left.score);
+  const best = scored[0];
+  const runnerUp = scored[1];
+
+  if (!best || best.score === 0 || best.score === runnerUp?.score) return undefined;
+
+  return Object.freeze({
+    selectedSenseId: best.sense.senseId,
+    confidence: 1,
+    reasonCodes: ["exact-topic-definition-match", "deterministic-verified-evidence"],
+  });
 }
 
 export interface SelectContextualSenseInput {
@@ -162,7 +213,7 @@ export async function selectContextualSense(
       resolution: "auto-selected",
       confidence: parsed.data.confidence,
       reasonCodes: Object.freeze([...parsed.data.reasonCodes]),
-      decidedBy: "contextual-ai-selector",
+      decidedBy: input.selector.decidedBy ?? "contextual-ai-selector",
     }),
   });
 }

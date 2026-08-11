@@ -19,7 +19,11 @@ export interface ContextualEnrichmentOptions {
 export type ContextuallyResolvedCandidate = EnrichedCandidate & {
   readonly senseSelectionConfidence?: number;
   readonly senseSelectionReasonCodes?: readonly string[];
-  readonly senseSelectedBy?: "single-verified-sense" | "contextual-ai-selector" | "learner";
+  readonly senseSelectedBy?:
+    | "single-verified-sense"
+    | "deterministic-context-selector"
+    | "contextual-ai-selector"
+    | "learner";
 };
 
 export interface ContextuallyResolvedVocabularySet extends Omit<

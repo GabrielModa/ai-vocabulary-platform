@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { LearningCandidate } from "./candidate-pipeline.js";
 import type { ContentProvenance, LexicalContent } from "./content.js";
 import {
+  selectContextualSenseDeterministically,
   selectContextualSense,
   type ContextualSenseSelectorPort,
 } from "./contextual-sense-selector.js";
@@ -53,6 +54,79 @@ const context = {
 };
 
 describe("contextual sense selector", () => {
+  it("selects a clearly topic-bound verified sense without model inference", () => {
+    expect(
+      selectContextualSenseDeterministically({
+        candidateId: "candidate:penalty:noun",
+        displayForm: "penalty",
+        normalizedLemma: "penalty",
+        proposedPartOfSpeech: "noun",
+        context: { topic: "football", learnerLevel: "A2", locale: "en-US" },
+        allowedSenses: [
+          {
+            senseId: "sense:football",
+            definition: "A free kick awarded in football after a serious foul.",
+            partOfSpeech: "noun",
+          },
+          {
+            senseId: "sense:punishment",
+            definition: "A punishment imposed for breaking a law or rule.",
+            partOfSpeech: "noun",
+          },
+        ],
+      }),
+    ).toEqual({
+      selectedSenseId: "sense:football",
+      confidence: 1,
+      reasonCodes: ["exact-topic-definition-match", "deterministic-verified-evidence"],
+    });
+  });
+
+  it("keeps tied or weak contextual evidence for learner review", () => {
+    const request = {
+      candidateId: "candidate:score:verb",
+      displayForm: "score",
+      normalizedLemma: "score",
+      proposedPartOfSpeech: "verb",
+      context: { topic: "weekend activities", learnerLevel: "B1", locale: "en-US" },
+      allowedSenses: [
+        {
+          senseId: "sense:points",
+          definition: "To gain points in a game.",
+          partOfSpeech: "verb",
+        },
+        {
+          senseId: "sense:music",
+          definition: "To write music for a film.",
+          partOfSpeech: "verb",
+        },
+      ],
+    } as const;
+
+    expect(selectContextualSenseDeterministically(request)).toBeUndefined();
+  });
+
+  it("records deterministic context selection separately from AI selection", async () => {
+    const result = await selectContextualSense({
+      candidate: candidate([loveSense, medicalSense]),
+      context,
+      selector: {
+        decidedBy: "deterministic-context-selector",
+        select: () =>
+          Promise.resolve({
+            selectedSenseId: "sense-love",
+            confidence: 1,
+            reasonCodes: ["exact-topic-definition-match"],
+          }),
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      decision: { decidedBy: "deterministic-context-selector" },
+    });
+  });
+
   it("selects a single verified sense without calling AI", async () => {
     const select = vi.fn();
     const result = await selectContextualSense({

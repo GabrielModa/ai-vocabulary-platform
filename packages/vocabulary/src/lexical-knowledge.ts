@@ -20,7 +20,11 @@ export interface ContextualSenseDecision {
   readonly resolution: WordKnowledgeResolution;
   readonly confidence: number;
   readonly reasonCodes: readonly string[];
-  readonly decidedBy: "single-verified-sense" | "contextual-ai-selector" | "learner";
+  readonly decidedBy:
+    | "single-verified-sense"
+    | "deterministic-context-selector"
+    | "contextual-ai-selector"
+    | "learner";
 }
 
 export interface WordKnowledgeContext {

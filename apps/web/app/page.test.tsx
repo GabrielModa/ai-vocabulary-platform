@@ -438,7 +438,7 @@ describe("VocabularyPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use selected meaning for pitch" }));
 
     expect(start).toBeEnabled();
-    expect(screen.getByText("Meaning confirmed")).toBeInTheDocument();
+    expect(screen.queryByText("Meaning confirmed")).not.toBeInTheDocument();
     fireEvent.click(start);
     expect(
       await screen.findByRole("heading", {
