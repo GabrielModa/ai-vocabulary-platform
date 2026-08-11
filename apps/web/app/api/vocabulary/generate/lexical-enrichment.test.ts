@@ -4,6 +4,7 @@ import {
   enrichVocabularySet,
   type FrequencyLookup,
   type LexicalLookup,
+  type PronunciationLookup,
 } from "./lexical-enrichment.js";
 
 const generated: LocalVocabularySet = {
@@ -33,6 +34,12 @@ function frequencyByWord(results: Readonly<Record<string, unknown>>): FrequencyL
   return {
     lookup: ({ word }) => Promise.resolve(results[word]),
   };
+}
+
+function pronunciationByWord(
+  results: Readonly<Record<string, readonly unknown[]>>,
+): PronunciationLookup {
+  return { lookup: ({ word }) => Promise.resolve(results[word] ?? []) };
 }
 
 const provenance = {
@@ -121,6 +128,45 @@ describe("server lexical enrichment", () => {
         { reason: "frequency-supported", points: 7 },
       ],
     });
+  });
+
+  it("attaches only verified pronunciation evidence without inventing IPA", async () => {
+    const pronunciation = {
+      word: "uncle",
+      dialect: "en-US",
+      transcription: "AH1 NG K AH0 L",
+      notation: "ARPABET",
+      provenance: {
+        provider: "cmu-pronouncing-dictionary",
+        sourceVersion: "0.7b",
+        sourceId: "uncle#1",
+        sourceUrl: "https://github.com/cmusphinx/cmudict",
+        license: "CMUdict license",
+        attribution: "Carnegie Mellon University",
+        retrievedAt: "2026-08-11T00:00:00.000Z",
+        generated: false,
+        validationStatus: "verified",
+      },
+    } as const;
+
+    const enriched = await enrichVocabularySet(
+      generated,
+      lookup([familySense]),
+      undefined,
+      undefined,
+      pronunciationByWord({ uncle: [pronunciation] }),
+    );
+
+    expect(enriched.candidates[0]).toMatchObject({
+      verifiedPronunciations: [
+        {
+          transcription: "AH1 NG K AH0 L",
+          notation: "ARPABET",
+          provenance: { sourceId: "uncle#1", validationStatus: "verified" },
+        },
+      ],
+    });
+    expect(enriched.candidates[0]).not.toHaveProperty("ipa");
   });
 
   it("does not guess when multiple compatible senses exist", async () => {

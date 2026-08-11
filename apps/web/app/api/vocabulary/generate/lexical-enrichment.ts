@@ -1,12 +1,14 @@
 import type { LocalVocabularySet } from "@vocabulary/ai";
 import {
   buildVerifiedCandidatePipeline,
+  CmuPronunciationProvider,
   OewnExampleProvider,
   OewnLexicalProvider,
   rankLearningCandidates,
   SubtlexFrequencyProvider,
   exampleContentSchema,
   frequencyContentSchema,
+  pronunciationContentSchema,
   type CandidateLexicalLookup,
   type CandidateScoreContribution,
   type ExampleContent,
@@ -16,6 +18,8 @@ import {
   type FrequencyProvider,
   type LearningCandidate,
   type LexicalContent,
+  type PronunciationContent,
+  type PronunciationProvider,
 } from "@vocabulary/domain-vocabulary";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -25,6 +29,7 @@ import { runCandidateExercisePipelines } from "./pipeline-adapter";
 export type LexicalLookup = CandidateLexicalLookup;
 export type FrequencyLookup = FrequencyProvider;
 export type ExampleLookup = ExampleProvider;
+export type PronunciationLookup = PronunciationProvider;
 
 type GeneratedCandidate = LocalVocabularySet["candidates"][number];
 
@@ -42,6 +47,7 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly verifiedExamples?: readonly ExampleContent[];
   readonly verifiedExamplesBySenseId?: Readonly<Record<string, readonly ExampleContent[]>>;
   readonly exampleProvenance?: ExampleContent["provenance"];
+  readonly verifiedPronunciations?: readonly PronunciationContent[];
   readonly senseId?: string;
   readonly lexicalProvenance?: LexicalContent["provenance"];
   readonly lexicalSenses?: readonly LexicalContent[];
@@ -63,6 +69,7 @@ export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candida
 let cachedLexicalLookup: Promise<LexicalLookup> | undefined;
 let cachedFrequencyLookup: Promise<FrequencyLookup> | undefined;
 let cachedExampleLookup: Promise<ExampleLookup> | undefined;
+let cachedPronunciationLookup: Promise<PronunciationLookup> | undefined;
 
 function lexicalIndexCandidates(): readonly string[] {
   if (process.env.OEWN_INDEX_PATH) return [resolve(process.env.OEWN_INDEX_PATH)];
@@ -85,6 +92,14 @@ function exampleIndexCandidates(): readonly string[] {
   return [
     resolve(process.cwd(), "data/oewn/examples.json"),
     resolve(process.cwd(), "../../data/oewn/examples.json"),
+  ];
+}
+
+function pronunciationIndexCandidates(): readonly string[] {
+  if (process.env.CMUDICT_INDEX_PATH) return [resolve(process.env.CMUDICT_INDEX_PATH)];
+  return [
+    resolve(process.cwd(), "data/cmudict/index.json"),
+    resolve(process.cwd(), "../../data/cmudict/index.json"),
   ];
 }
 
@@ -148,6 +163,23 @@ export async function loadLocalExampleLookup(): Promise<ExampleLookup | undefine
   }
 }
 
+export async function loadLocalPronunciationLookup(): Promise<PronunciationLookup | undefined> {
+  cachedPronunciationLookup ??= readFirstIndex(
+    pronunciationIndexCandidates(),
+    "CMUdict index unavailable",
+  )
+    .then((index) => new CmuPronunciationProvider(index))
+    .catch((error: unknown) => {
+      cachedPronunciationLookup = undefined;
+      throw error;
+    });
+  try {
+    return await cachedPronunciationLookup;
+  } catch {
+    return undefined;
+  }
+}
+
 function adaptCandidate(
   generated: GeneratedCandidate,
   candidate: LearningCandidate,
@@ -160,6 +192,7 @@ function adaptCandidate(
   examples: readonly ExampleContent[],
   examplesBySenseId: Readonly<Record<string, readonly ExampleContent[]>>,
   exercisePipelineOutcome: ExercisePipelineOutcome | undefined,
+  pronunciations: readonly PronunciationContent[],
 ): EnrichedCandidate {
   const firstExample = examples[0];
   const base = {
@@ -174,6 +207,7 @@ function adaptCandidate(
     ...(Object.keys(examplesBySenseId).length > 0
       ? { verifiedExamplesBySenseId: examplesBySenseId }
       : {}),
+    ...(pronunciations.length > 0 ? { verifiedPronunciations: pronunciations } : {}),
     candidateId: candidate.candidateId,
     normalizedLemma: candidate.normalizedLemma,
     selectionReasons: candidate.selectionReasons,
@@ -258,11 +292,26 @@ async function lookupExamplesBySenseId(
   return Object.freeze(Object.fromEntries(entries));
 }
 
+async function lookupPronunciations(
+  provider: PronunciationLookup | undefined,
+  word: string,
+): Promise<readonly PronunciationContent[]> {
+  if (!provider) return [];
+  try {
+    const result = await provider.lookup({ word, dialect: "en-US" });
+    if (!Array.isArray(result)) return [];
+    return Object.freeze(result.map((item) => pronunciationContentSchema.parse(item)));
+  } catch {
+    return [];
+  }
+}
+
 export async function enrichVocabularySet(
   vocabularySet: LocalVocabularySet,
   lexicalLookup: LexicalLookup | undefined,
   frequencyLookup?: FrequencyLookup,
   exampleLookup?: ExampleLookup,
+  pronunciationLookup?: PronunciationLookup,
 ): Promise<EnrichedVocabularySet> {
   const generatedByKey = new Map<string, GeneratedCandidate[]>();
   for (const candidate of vocabularySet.candidates) {
@@ -279,7 +328,7 @@ export async function enrichVocabularySet(
     lexicalLookup,
   );
 
-  const [frequencies, examplesBySenseId] = await Promise.all([
+  const [frequencies, examplesBySenseId, pronunciations] = await Promise.all([
     Promise.all(
       pipeline.candidates.map((candidate) =>
         lookupFrequency(frequencyLookup, candidate.normalizedLemma),
@@ -288,6 +337,11 @@ export async function enrichVocabularySet(
     Promise.all(
       pipeline.candidates.map((candidate) =>
         lookupExamplesBySenseId(exampleLookup, candidate.availableSenses),
+      ),
+    ),
+    Promise.all(
+      pipeline.candidates.map((candidate) =>
+        lookupPronunciations(pronunciationLookup, candidate.normalizedLemma),
       ),
     ),
   ]);
@@ -309,6 +363,12 @@ export async function enrichVocabularySet(
             candidate.selectedSense.senseId
           ] ?? [])
         : [],
+    ]),
+  );
+  const pronunciationsByCandidateId = new Map(
+    pipeline.candidates.map((candidate, index) => [
+      candidate.candidateId,
+      pronunciations[index] ?? [],
     ]),
   );
 
@@ -355,6 +415,7 @@ export async function enrichVocabularySet(
             examplesByCandidateId.get(ranked.candidate.candidateId) ?? [],
             examplesBySenseByCandidateId.get(ranked.candidate.candidateId) ?? {},
             outcomeByCandidateId.get(ranked.candidate.candidateId),
+            pronunciationsByCandidateId.get(ranked.candidate.candidateId) ?? [],
           ),
         ]
       : [];

@@ -15,6 +15,7 @@ import {
   loadLocalExampleLookup,
   loadLocalFrequencyLookup,
   loadLocalLexicalLookup,
+  loadLocalPronunciationLookup,
 } from "./lexical-enrichment";
 
 async function generate(input: unknown) {
@@ -24,18 +25,21 @@ async function generate(input: unknown) {
     ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
   });
 
-  const [generated, lexicalLookup, frequencyLookup, exampleLookup] = await Promise.all([
-    generator.generate(request),
-    loadLocalLexicalLookup(),
-    loadLocalFrequencyLookup(),
-    loadLocalExampleLookup(),
-  ]);
+  const [generated, lexicalLookup, frequencyLookup, exampleLookup, pronunciationLookup] =
+    await Promise.all([
+      generator.generate(request),
+      loadLocalLexicalLookup(),
+      loadLocalFrequencyLookup(),
+      loadLocalExampleLookup(),
+      loadLocalPronunciationLookup(),
+    ]);
 
   const enriched = await enrichVocabularySet(
     generated,
     lexicalLookup,
     frequencyLookup,
     exampleLookup,
+    pronunciationLookup,
   );
   const selector = new OllamaContextualSenseSelector({
     ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
