@@ -138,7 +138,8 @@ h2 {
 }
 .mode-grid,
 .resume-session,
-.capture-form {
+.capture-form,
+.recent-practice {
   grid-column: 2;
 }
 .resume-session {
@@ -159,6 +160,44 @@ h2 {
 }
 .resume-session > div:last-child {
   grid-template-columns: repeat(2, minmax(0, max-content));
+}
+.recent-practice {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #2d3239;
+}
+.recent-practice h3,
+.recent-practice p {
+  margin: 0;
+}
+.recent-practice > div,
+.recent-practice ol {
+  display: grid;
+  gap: 0.5rem;
+}
+.recent-practice ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recent-practice li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem;
+  border: 1px solid #363c45;
+  border-radius: 0.75rem;
+  background: #15191f;
+}
+.recent-practice li > span:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+.recent-practice small,
+.recent-practice li > span:last-child {
+  color: #aeb4bd;
 }
 .mode-grid {
   display: grid;
@@ -677,6 +716,11 @@ textarea {
 .result-breakdown details p {
   margin: 0;
 }
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
 .progress-label {
   margin: 0;
   color: #c6ff48;
@@ -728,6 +772,7 @@ select:focus-visible {
   .mode-grid,
   .resume-session,
   .capture-form,
+  .recent-practice,
   .review-heading,
   .review-mode,
   .candidate-list,
@@ -746,6 +791,11 @@ select:focus-visible {
   }
   .resume-session > div:last-child {
     grid-template-columns: 1fr;
+  }
+  .recent-practice li,
+  .result-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 @media (prefers-reduced-motion: reduce) {

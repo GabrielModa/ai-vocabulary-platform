@@ -74,7 +74,7 @@ function boundedString(value: unknown, maximum: number): string | undefined {
   return normalized.length > 0 && normalized.length <= maximum ? normalized : undefined;
 }
 
-function candidateFrom(value: unknown): ResumableCandidate | undefined {
+export function resumableCandidateFrom(value: unknown): ResumableCandidate | undefined {
   if (!isRecord(value)) return undefined;
   const term = boundedString(value.term, 120);
   const meaning = boundedString(value.meaning, 1_000);
@@ -191,7 +191,10 @@ function publishedExerciseFrom(
   };
 }
 
-function attemptFrom(value: unknown, terms: ReadonlySet<string>): ResumableAttempt | undefined {
+export function resumableAttemptFrom(
+  value: unknown,
+  terms: ReadonlySet<string>,
+): ResumableAttempt | undefined {
   if (!isRecord(value)) return undefined;
   const term = boundedString(value.term, 120);
   const chosenTerm = boundedString(value.chosenTerm, 120);
@@ -222,7 +225,7 @@ function sessionFrom(value: unknown, now: Date): InterruptedStudySession | undef
   const level =
     typeof value.level === "string" && levels.has(value.level) ? value.level : undefined;
   if (!title || !level || !Array.isArray(value.candidates)) return undefined;
-  const candidates = value.candidates.map(candidateFrom);
+  const candidates = value.candidates.map(resumableCandidateFrom);
   if (
     candidates.length === 0 ||
     candidates.length > 50 ||
@@ -250,7 +253,7 @@ function sessionFrom(value: unknown, now: Date): InterruptedStudySession | undef
     return undefined;
   }
   const selected = new Set(selectedTerms);
-  const attempts = value.attempts.map((attempt) => attemptFrom(attempt, selected));
+  const attempts = value.attempts.map((attempt) => resumableAttemptFrom(attempt, selected));
   if (attempts.length > selectedTerms.length || attempts.some((attempt) => !attempt)) {
     return undefined;
   }

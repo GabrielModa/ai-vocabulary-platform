@@ -7,6 +7,7 @@ import {
   readInterruptedStudySession,
   saveInterruptedStudySession,
 } from "./interrupted-study-session";
+import { appendCompletedStudySession, readCompletedStudySessions } from "./local-study-history";
 
 const generatedSet = {
   title: "Your football word set",
@@ -323,6 +324,30 @@ describe("VocabularyPage", () => {
       screen.getByRole("heading", { name: "What do you want to learn from?" }),
     ).toBeInTheDocument();
   });
+  it("shows recent completed practice without describing it as mastery", () => {
+    appendCompletedStudySession(window.localStorage, {
+      version: 1,
+      sessionId: "history-session-1",
+      completedAt: "2026-08-11T12:00:00.000Z",
+      title: generatedSet.title,
+      level: "B1",
+      candidates: generatedSet.candidates,
+      selectedTerms: generatedSet.candidates.map(({ term }) => term),
+      attempts: [
+        { term: "pitch", chosenTerm: "pass", correct: false },
+        { term: "pass", chosenTerm: "pass", correct: true },
+      ],
+      score: { correct: 1, attempted: 2, percentage: 50 },
+    });
+
+    render(<VocabularyPage />);
+
+    expect(screen.getByRole("heading", { name: "Recent practice" })).toBeInTheDocument();
+    expect(screen.getByText(generatedSet.title)).toBeInTheDocument();
+    expect(screen.getByText("50% · 1 of 2 correct")).toBeInTheDocument();
+    expect(screen.getByText(/Attempt history only/u)).toBeInTheDocument();
+    expect(screen.queryByText(/mastered/u)).not.toBeInTheDocument();
+  });
   it("requires explicit confirmation for an ambiguous selected meaning", async () => {
     vi.stubGlobal(
       "fetch",
@@ -392,5 +417,16 @@ describe("VocabularyPage", () => {
     expect(screen.getByRole("heading", { name: "75% correct" })).toBeInTheDocument();
     expect(screen.getByText("You chose: pass")).toBeInTheDocument();
     expect(screen.getAllByText("Correct", { selector: "span" })).toHaveLength(3);
+    expect(readCompletedStudySessions(window.localStorage)).toHaveLength(1);
+    expect(readCompletedStudySessions(window.localStorage)[0]?.score).toEqual({
+      correct: 3,
+      attempted: 4,
+      percentage: 75,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Practice wrong words" }));
+    expect(screen.getByText("Question 1 of 1")).toBeInTheDocument();
+    expect(screen.getByText(/players walked onto the ___ before the match/u)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "75% correct" })).not.toBeInTheDocument();
   });
 });

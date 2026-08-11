@@ -25,6 +25,11 @@ import {
   type InterruptedStudySession,
   type ResumableCandidate,
 } from "./interrupted-study-session";
+import {
+  appendCompletedStudySession,
+  readCompletedStudySessions,
+  type CompletedStudySession,
+} from "./local-study-history";
 
 type Mode = "words" | "topic" | "photo";
 type ReviewMode = "test" | "study";
@@ -267,9 +272,11 @@ export function CaptureWorkspace() {
   const [visualCluesEnabled, setVisualCluesEnabled] = useState(true);
   const [restorableSession, setRestorableSession] = useState<InterruptedStudySession>();
   const [restoredSession, setRestoredSession] = useState(false);
+  const [completedSessions, setCompletedSessions] = useState<readonly CompletedStudySession[]>([]);
   useEffect(() => {
     setVisualCluesEnabled(readVisualCluesEnabled(window.localStorage));
     setRestorableSession(readInterruptedStudySession(window.localStorage));
+    setCompletedSessions(readCompletedStudySessions(window.localStorage));
   }, []);
   useEffect(() => {
     if (sessionComplete) {
@@ -477,9 +484,7 @@ export function CaptureWorkspace() {
   const trainingCandidates = candidates.filter(({ term }) => selected.has(term));
   const unresolvedSelectedCount = countUnresolvedSelectedCandidates(candidates, selected);
   const currentCandidate = trainingCandidates[questionIndex];
-  const optionPool = currentCandidate
-    ? candidateAnswerOptions(currentCandidate, trainingCandidates)
-    : [];
+  const optionPool = currentCandidate ? candidateAnswerOptions(currentCandidate, candidates) : [];
   const optionOffset = optionPool.length === 0 ? 0 : questionIndex % optionPool.length;
   const answerOptions = [...optionPool.slice(optionOffset), ...optionPool.slice(0, optionOffset)];
 
@@ -514,6 +519,29 @@ export function CaptureWorkspace() {
 
   function nextQuestion() {
     if (questionIndex + 1 >= trainingCandidates.length) {
+      const safeLevel = resumableLevel(level);
+      if (safeLevel) {
+        const sessionId = studySessionId ?? `local:${new Date().toISOString()}`;
+        appendCompletedStudySession(window.localStorage, {
+          version: 1,
+          sessionId,
+          completedAt: new Date().toISOString(),
+          title,
+          level: safeLevel,
+          candidates: candidates.map(resumableCandidate),
+          selectedTerms: [...selected],
+          attempts,
+          score: {
+            correct: score,
+            attempted: attempts.filter(({ voided }) => !voided).length,
+            percentage:
+              attempts.filter(({ voided }) => !voided).length === 0
+                ? 0
+                : Math.round((score / attempts.filter(({ voided }) => !voided).length) * 100),
+          },
+        });
+        setCompletedSessions(readCompletedStudySessions(window.localStorage));
+      }
       setSessionComplete(true);
       return;
     }
@@ -570,7 +598,27 @@ export function CaptureWorkspace() {
     setReviewMode("test");
     setRestorableSession(undefined);
     setRestoredSession(true);
+    setStudySessionId(`local:${session.savedAt}`);
     setError(undefined);
+  }
+
+  function practiceWrongWords() {
+    const wrongTerms = attempts
+      .filter(({ correct, voided }) => !correct && !voided)
+      .map(({ term }) => term);
+    if (wrongTerms.length === 0) return;
+    clearInterruptedStudySession(window.localStorage);
+    setSelected(new Set(wrongTerms));
+    setQuestionIndex(0);
+    setChosenTerm(undefined);
+    setFeedback(undefined);
+    setScore(0);
+    setAttempts([]);
+    setSessionComplete(false);
+    setStudySessionId(`retry:${crypto.randomUUID()}`);
+    setMeaningCorrectionTerm(undefined);
+    setMeaningCorrectionStatus(undefined);
+    setRestoredSession(false);
   }
 
   function discardInterruptedSession() {
@@ -752,6 +800,31 @@ export function CaptureWorkspace() {
                 <span aria-hidden="true">→</span>
               </button>
             </form>
+            {completedSessions.length > 0 && (
+              <section className="recent-practice" aria-labelledby="recent-practice-title">
+                <div>
+                  <p className="eyebrow">Saved on this device</p>
+                  <h3 id="recent-practice-title">Recent practice</h3>
+                  <p>Attempt history only — mastery is calculated separately over time.</p>
+                </div>
+                <ol>
+                  {completedSessions.slice(0, 3).map((session) => (
+                    <li key={session.sessionId}>
+                      <span>
+                        <strong>{session.title}</strong>
+                        <small>
+                          {session.level} · {new Date(session.completedAt).toLocaleDateString()}
+                        </small>
+                      </span>
+                      <span>
+                        {session.score.percentage}% · {session.score.correct} of{" "}
+                        {session.score.attempted} correct
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
           </section>
         ) : !training ? (
           <section className="capture-card review-card" aria-labelledby="review-title">
@@ -1262,9 +1335,16 @@ export function CaptureWorkspace() {
                     );
                   })}
                 </div>
-                <button className="primary-action" type="button" onClick={resetSession}>
-                  Create another word set
-                </button>
+                <div className="result-actions">
+                  {attempts.some(({ correct, voided }) => !correct && !voided) && (
+                    <button className="primary-action" type="button" onClick={practiceWrongWords}>
+                      Practice wrong words
+                    </button>
+                  )}
+                  <button className="secondary-action" type="button" onClick={resetSession}>
+                    Create another word set
+                  </button>
+                </div>
                 <p className="privacy-note">
                   This result describes this attempt only. Mastery develops across future practice.
                 </p>
