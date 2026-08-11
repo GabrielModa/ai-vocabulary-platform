@@ -17,6 +17,7 @@ export * from "./exercise-pipeline.js";
 export * from "./exercise-validator.js";
 export * from "./frequency.js";
 export * from "./learning-artifact.js";
+export * from "./learning-engine.js";
 export * from "./lexical-knowledge.js";
 export * from "./model.js";
 export * from "./oewn-examples.js";
