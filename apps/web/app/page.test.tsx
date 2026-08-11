@@ -187,6 +187,47 @@ describe("VocabularyPage", () => {
     expect(screen.getByRole("button", { name: /Photo/u })).toBeInTheDocument();
     expect(screen.getByLabelText("English level")).toHaveValue("B1");
   });
+  it("analyzes a consented photo locally before opening candidate review", async () => {
+    const generationFetch = fetchForGeneration(generatedSet);
+    const photoFetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      void init;
+      const url =
+        typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (url === "/api/vocabulary/photo")
+        return Promise.resolve(
+          new Response(JSON.stringify({ terms: ["pitch", "goal", "ball", "player"] }), {
+            status: 200,
+          }),
+        );
+      return generationFetch(input);
+    });
+    vi.stubGlobal("fetch", photoFetch);
+    render(<VocabularyPage />);
+    fireEvent.click(screen.getByRole("button", { name: /Photo/u }));
+    const photo = screen.getByLabelText("Photo");
+    fireEvent.change(photo, {
+      target: {
+        files: [
+          new File([new Uint8Array([0xff, 0xd8, 0xff])], "field.jpg", { type: "image/jpeg" }),
+        ],
+      },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /temporary photo processing/u }));
+    const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!form) throw new Error("missing capture form");
+    fireEvent.submit(form);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Your football word set" }),
+    ).toBeInTheDocument();
+    const photoCall = photoFetch.mock.calls[0];
+    expect(photoCall?.[0]).toBe("/api/vocabulary/photo");
+    expect(photoCall?.[1]?.method).toBe("POST");
+    expect(photoCall?.[1]?.body).toBeInstanceOf(FormData);
+    const generationCall = photoFetch.mock.calls[1];
+    expect(generationCall?.[0]).toBe("/api/vocabulary/generate");
+    expect(generationCall?.[1]?.body).toContain("pitch, goal, ball, player");
+  });
   it("shows explicit selectable review before training", async () => {
     render(<VocabularyPage />);
     const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");

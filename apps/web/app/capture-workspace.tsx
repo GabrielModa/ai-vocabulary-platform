@@ -321,20 +321,29 @@ export function CaptureWorkspace() {
   }
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (mode === "photo") {
-      setError("Photo analysis needs a vision model. Topic and words modes are ready now.");
-      return;
-    }
     const form = new FormData(event.currentTarget);
-    const topic = mode === "topic" ? formText(form, "topic") : formText(form, "words");
-    const requestedCount =
-      mode === "topic"
-        ? Number(form.get("count"))
-        : Math.max(4, topic.split(/[,;\n]+/u).filter(Boolean).length);
     setLoading(true);
     setError(undefined);
     try {
       const requestedLevel = formText(form, "level");
+      let topic: string;
+      let requestedCount: number;
+      if (mode === "photo") {
+        const photoResponse = await fetch("/api/vocabulary/photo", {
+          method: "POST",
+          body: form,
+        });
+        if (!photoResponse.ok) throw new Error("photo analysis failed");
+        const photoResult = (await photoResponse.json()) as { readonly terms: readonly string[] };
+        topic = photoResult.terms.join(", ");
+        requestedCount = Math.max(4, photoResult.terms.length);
+      } else {
+        topic = mode === "topic" ? formText(form, "topic") : formText(form, "words");
+        requestedCount =
+          mode === "topic"
+            ? Number(form.get("count"))
+            : Math.max(4, topic.split(/[,;\n]+/u).filter(Boolean).length);
+      }
       const response = await fetch("/api/vocabulary/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -792,8 +801,8 @@ export function CaptureWorkspace() {
                     />
                   </label>
                   <label className="consent">
-                    <input required type="checkbox" /> I agree to temporary photo processing. The
-                    original is deleted after analysis.
+                    <input required name="consent" value="true" type="checkbox" /> I agree to
+                    temporary photo processing. The original is deleted after analysis.
                   </label>
                 </>
               )}
