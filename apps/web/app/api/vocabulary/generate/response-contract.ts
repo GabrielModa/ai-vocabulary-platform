@@ -1,7 +1,7 @@
 import type { ExercisePipelineOutcome } from "@vocabulary/domain-vocabulary";
 import type { EnrichedVocabularySet } from "./lexical-enrichment";
 
-export const VOCABULARY_GENERATION_RESPONSE_VERSION = "2026-08-04" as const;
+export const VOCABULARY_GENERATION_RESPONSE_VERSION = "2026-08-11" as const;
 
 export interface PublicPublishedExercise {
   readonly exerciseId: string;

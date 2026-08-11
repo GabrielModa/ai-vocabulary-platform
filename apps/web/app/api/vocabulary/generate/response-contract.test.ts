@@ -104,14 +104,42 @@ describe("vocabulary generation response contract", () => {
           rank: 1,
           rankingScore: 1,
           rankingContributions: [],
+          qualityReport: {
+            candidateId: "candidate:sample:verb",
+            decision: "review",
+            exerciseReadiness: "requires-review",
+            overallScore: 45,
+            dimensions: {
+              lexicalCoverage: 70,
+              exerciseReadiness: 40,
+              exampleCoverage: 0,
+              frequencyEvidence: 0,
+              ambiguityRisk: 60,
+            },
+            reasonCodes: ["sense-confirmation-required"],
+          },
         },
       ],
       candidateStrategy: "suggest-verify-select",
       rankingStrategy: "deterministic-weighted-ranking",
+      qualitySummary: {
+        requestedCount: 1,
+        evaluatedCount: 1,
+        acceptedCount: 0,
+        reviewCount: 1,
+        rejectedCount: 0,
+        usableCount: 1,
+        deficitCount: 0,
+        coveragePercentage: 100,
+        averageScore: 45,
+        qualityBand: "low",
+      },
       rejectedCandidates: [],
     });
 
-    expect(response.responseVersion).toBe("2026-08-04");
+    expect(response.responseVersion).toBe("2026-08-11");
+    expect(response.qualitySummary.coveragePercentage).toBe(100);
+    expect(response.candidates[0]?.qualityReport.decision).toBe("review");
     expect(response.candidates[0]).not.toHaveProperty("exercisePipelineOutcome");
   });
 });

@@ -2,6 +2,8 @@ import type { LocalVocabularySet } from "@vocabulary/ai";
 import {
   buildVerifiedCandidatePipeline,
   CmuPronunciationProvider,
+  evaluateCandidateQuality,
+  evaluateSetQuality,
   OewnExampleProvider,
   OewnLexicalProvider,
   rankLearningCandidates,
@@ -12,6 +14,7 @@ import {
   frequencyContentSchema,
   pronunciationContentSchema,
   type CandidateLexicalLookup,
+  type CandidateQualityReport,
   type CandidateScoreContribution,
   type ExampleContent,
   type ExampleProvider,
@@ -22,6 +25,7 @@ import {
   type LexicalContent,
   type PronunciationContent,
   type PronunciationProvider,
+  type SetQualityReport,
 } from "@vocabulary/domain-vocabulary";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -55,12 +59,14 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly lexicalSenses?: readonly LexicalContent[];
   readonly exerciseKind?: ExerciseKind;
   readonly exercisePipelineOutcome?: ExercisePipelineOutcome;
+  readonly qualityReport: CandidateQualityReport;
 };
 
 export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candidates"> {
   readonly candidates: readonly EnrichedCandidate[];
   readonly candidateStrategy: "suggest-verify-select";
   readonly rankingStrategy: "deterministic-weighted-ranking";
+  readonly qualitySummary: SetQualityReport;
   readonly rejectedCandidates: readonly {
     readonly term: string;
     readonly normalizedLemma?: string;
@@ -195,6 +201,7 @@ function adaptCandidate(
   examplesBySenseId: Readonly<Record<string, readonly ExampleContent[]>>,
   exercisePipelineOutcome: ExercisePipelineOutcome | undefined,
   pronunciations: readonly PronunciationContent[],
+  qualityReport: CandidateQualityReport,
 ): EnrichedCandidate {
   const firstExample = examples[0];
   const base = {
@@ -218,6 +225,7 @@ function adaptCandidate(
     rank: ranking.rank,
     rankingScore: ranking.score,
     rankingContributions: ranking.contributions,
+    qualityReport,
     ...(frequency
       ? {
           frequencyPercentile: frequency.percentile,
@@ -422,6 +430,23 @@ export async function enrichVocabularySet(
   const outcomeByCandidateId = new Map(
     pipelineOutcomes.map((result) => [result.candidateId, result.outcome]),
   );
+  const qualityByCandidateId = new Map(
+    ranking.ranked.map(({ candidate }) => {
+      const examplesBySense = examplesBySenseByCandidateId.get(candidate.candidateId) ?? {};
+      const verifiedExampleCount = Object.values(examplesBySense).reduce(
+        (count, examples) => count + examples.length,
+        0,
+      );
+      return [
+        candidate.candidateId,
+        evaluateCandidateQuality({
+          candidate,
+          verifiedExampleCount,
+          hasFrequencyEvidence: frequencyByCandidateId.get(candidate.candidateId) !== undefined,
+        }),
+      ] as const;
+    }),
+  );
 
   const candidates = ranking.ranked.flatMap((ranked) => {
     const key = generatedCandidateKey({
@@ -442,6 +467,12 @@ export async function enrichVocabularySet(
             examplesBySenseByCandidateId.get(ranked.candidate.candidateId) ?? {},
             outcomeByCandidateId.get(ranked.candidate.candidateId),
             pronunciationsByCandidateId.get(ranked.candidate.candidateId) ?? [],
+            qualityByCandidateId.get(ranked.candidate.candidateId) ??
+              evaluateCandidateQuality({
+                candidate: ranked.candidate,
+                verifiedExampleCount: 0,
+                hasFrequencyEvidence: false,
+              }),
           ),
         ]
       : [];
@@ -452,6 +483,10 @@ export async function enrichVocabularySet(
     candidates,
     candidateStrategy: pipeline.strategy,
     rankingStrategy: ranking.strategy,
+    qualitySummary: evaluateSetQuality({
+      requestedCount: vocabularySet.candidates.length,
+      candidates: [...qualityByCandidateId.values()],
+    }),
     rejectedCandidates: pipeline.rejected,
   };
 }

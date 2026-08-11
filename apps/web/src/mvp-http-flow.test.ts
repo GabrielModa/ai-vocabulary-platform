@@ -83,6 +83,20 @@ function candidate(word: string, definition: string, rank: number): EnrichedCand
     lexicalProvenance: sense.provenance,
     lexicalSenses: [sense],
     exerciseKind: "definition-choice",
+    qualityReport: {
+      candidateId: `candidate:${word}:noun`,
+      decision: "accept",
+      exerciseReadiness: "ready",
+      overallScore: 90,
+      dimensions: {
+        lexicalCoverage: 100,
+        exerciseReadiness: 100,
+        exampleCoverage: 60,
+        frequencyEvidence: 100,
+        ambiguityRisk: 0,
+      },
+      reasonCodes: ["verified-sense", "definition-exercise-ready", "verified-examples"],
+    },
   };
 }
 

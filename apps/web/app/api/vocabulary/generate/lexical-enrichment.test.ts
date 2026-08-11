@@ -96,6 +96,13 @@ describe("server lexical enrichment", () => {
     expect(enriched).toMatchObject({
       candidateStrategy: "suggest-verify-select",
       rankingStrategy: "deterministic-weighted-ranking",
+      qualitySummary: {
+        requestedCount: 1,
+        acceptedCount: 1,
+        usableCount: 1,
+        deficitCount: 0,
+        coveragePercentage: 100,
+      },
     });
     expect(enriched.candidates[0]).toMatchObject({
       candidateId: "candidate:uncle:noun",
@@ -109,6 +116,11 @@ describe("server lexical enrichment", () => {
       rank: 1,
       rankingScore: 40,
       rankingContributions: [{ reason: "verified-sense", points: 40 }],
+      qualityReport: {
+        decision: "accept",
+        exerciseReadiness: "ready",
+        dimensions: { lexicalCoverage: 100 },
+      },
     });
   });
 

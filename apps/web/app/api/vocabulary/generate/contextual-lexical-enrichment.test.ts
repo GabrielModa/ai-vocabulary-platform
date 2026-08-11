@@ -18,6 +18,18 @@ const vocabularySet: EnrichedVocabularySet = {
   title: "Love vocabulary",
   candidateStrategy: "suggest-verify-select",
   rankingStrategy: "deterministic-weighted-ranking",
+  qualitySummary: {
+    requestedCount: 1,
+    evaluatedCount: 1,
+    acceptedCount: 0,
+    reviewCount: 1,
+    rejectedCount: 0,
+    usableCount: 1,
+    deficitCount: 0,
+    coveragePercentage: 100,
+    averageScore: 45,
+    qualityBand: "low",
+  },
   rejectedCandidates: [],
   candidates: [
     {
@@ -54,6 +66,20 @@ const vocabularySet: EnrichedVocabularySet = {
       rank: 1,
       rankingScore: 15,
       rankingContributions: [{ reason: "ambiguous-sense", points: 15 }],
+      qualityReport: {
+        candidateId: "candidate:affection:noun",
+        decision: "review",
+        exerciseReadiness: "requires-review",
+        overallScore: 45,
+        dimensions: {
+          lexicalCoverage: 70,
+          exerciseReadiness: 40,
+          exampleCoverage: 0,
+          frequencyEvidence: 0,
+          ambiguityRisk: 60,
+        },
+        reasonCodes: ["verified-senses-ambiguous", "sense-confirmation-required"],
+      },
     },
   ],
 };

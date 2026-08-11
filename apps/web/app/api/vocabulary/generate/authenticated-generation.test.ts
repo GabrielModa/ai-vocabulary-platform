@@ -11,6 +11,18 @@ const generated: EnrichedVocabularySet = {
   title: "Food vocabulary",
   candidateStrategy: "suggest-verify-select",
   rankingStrategy: "deterministic-weighted-ranking",
+  qualitySummary: {
+    requestedCount: 1,
+    evaluatedCount: 1,
+    acceptedCount: 1,
+    reviewCount: 0,
+    rejectedCount: 0,
+    usableCount: 1,
+    deficitCount: 0,
+    coveragePercentage: 100,
+    averageScore: 80,
+    qualityBand: "high",
+  },
   rejectedCandidates: [],
   candidates: [
     {
@@ -26,6 +38,20 @@ const generated: EnrichedVocabularySet = {
       rank: 1,
       rankingScore: 1,
       rankingContributions: [],
+      qualityReport: {
+        candidateId: "candidate:sample",
+        decision: "accept",
+        exerciseReadiness: "ready",
+        overallScore: 80,
+        dimensions: {
+          lexicalCoverage: 100,
+          exerciseReadiness: 70,
+          exampleCoverage: 60,
+          frequencyEvidence: 0,
+          ambiguityRisk: 0,
+        },
+        reasonCodes: ["verified-sense", "definition-exercise-ready"],
+      },
       exercisePipelineOutcome: {
         outcome: "reject",
         pipeline: "verified-exercise-pipeline-v1",
