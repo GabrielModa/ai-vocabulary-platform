@@ -17,6 +17,7 @@ import {
   readSensePreferences,
   writeSensePreference,
 } from "./sense-preferences";
+import { readVisualCluesEnabled, writeVisualCluesEnabled } from "./visual-clue-preferences";
 
 type Mode = "words" | "topic" | "photo";
 const modeCopy: Record<Mode, { title: string; description: string }> = {
@@ -231,6 +232,14 @@ export function CaptureWorkspace() {
   const [studySessionId, setStudySessionId] = useState<string>();
   const [meaningCorrectionTerm, setMeaningCorrectionTerm] = useState<string>();
   const [meaningCorrectionStatus, setMeaningCorrectionStatus] = useState<string>();
+  const [visualCluesEnabled, setVisualCluesEnabled] = useState(true);
+  useEffect(() => {
+    setVisualCluesEnabled(readVisualCluesEnabled(window.localStorage));
+  }, []);
+  function updateVisualClues(enabled: boolean) {
+    setVisualCluesEnabled(enabled);
+    writeVisualCluesEnabled(window.localStorage, enabled);
+  }
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (mode === "photo") {
@@ -270,10 +279,12 @@ export function CaptureWorkspace() {
       setConfirmedMeanings(new Set());
       setLevel(requestedLevel);
       setReviewing(true);
-      for (const candidate of preferredCandidates
-        .filter((item) => !requiresSenseConfirmation(item))
-        .slice(0, 4))
-        void enqueueImage(candidate, requestedLevel);
+      if (visualCluesEnabled) {
+        for (const candidate of preferredCandidates
+          .filter((item) => !requiresSenseConfirmation(item))
+          .slice(0, 4))
+          void enqueueImage(candidate, requestedLevel);
+      }
     } catch {
       setError("Local AI could not generate this set. Make sure Ollama is running and try again.");
     } finally {
@@ -589,6 +600,19 @@ export function CaptureWorkspace() {
                   <option>C2</option>
                 </select>
               </label>
+              <label className="visual-clue-setting">
+                <input
+                  type="checkbox"
+                  checked={visualCluesEnabled}
+                  onChange={(event) => {
+                    updateVisualClues(event.currentTarget.checked);
+                  }}
+                />
+                <span>
+                  <strong>Use visual clues</strong>
+                  <small>Generate checked local images in the background during practice.</small>
+                </span>
+              </label>
               {error && (
                 <p role="alert" className="error-message">
                   {error}
@@ -779,7 +803,26 @@ export function CaptureWorkspace() {
                     ? "Which word matches the verified meaning?"
                     : "Which word completes the sentence?"}
                 </h2>
-                <PracticeImage candidate={currentCandidate} level={level} />
+                <label className="visual-clue-setting compact">
+                  <input
+                    type="checkbox"
+                    checked={visualCluesEnabled}
+                    onChange={(event) => {
+                      updateVisualClues(event.currentTarget.checked);
+                    }}
+                  />
+                  <span>
+                    <strong>Use visual clues</strong>
+                    <small>Turn off to continue without waiting for local image generation.</small>
+                  </span>
+                </label>
+                {visualCluesEnabled ? (
+                  <PracticeImage candidate={currentCandidate} level={level} />
+                ) : (
+                  <p className="visual-clue-disabled" role="status">
+                    Training without visual clues.
+                  </p>
+                )}
                 <div className="sentence-with-audio">
                   <blockquote>“{sentenceWithGap(currentCandidate)}”</blockquote>
                   <button

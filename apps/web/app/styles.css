@@ -397,6 +397,44 @@ textarea {
   border-radius: 1rem;
   background: radial-gradient(circle at 50% 35%, rgb(198 255 72 / 12%), transparent 12rem), #15191f;
 }
+
+.visual-clue-setting {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid #343a43;
+  border-radius: 1rem;
+  cursor: pointer;
+}
+
+.visual-clue-setting input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #c6ff48;
+}
+
+.visual-clue-setting span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.visual-clue-setting small {
+  color: #aeb4bd;
+  font-weight: 400;
+}
+
+.visual-clue-setting.compact {
+  margin-bottom: 1rem;
+}
+
+.visual-clue-disabled {
+  padding: 1.5rem;
+  border: 1px dashed #343a43;
+  border-radius: 1rem;
+  color: #aeb4bd;
+  text-align: center;
+}
 .practice-image.ready {
   position: relative;
   aspect-ratio: 16 / 8;

@@ -156,6 +156,7 @@ const ambiguousGeneratedSet = {
 };
 
 beforeEach(() => {
+  window.localStorage.clear();
   vi.stubGlobal("fetch", fetchForGeneration(generatedSet));
 });
 
@@ -219,6 +220,22 @@ describe("VocabularyPage", () => {
           ],
         }),
       }),
+    );
+  });
+  it("runs the complete training flow without requesting visual clues", async () => {
+    render(<VocabularyPage />);
+    fireEvent.click(screen.getByRole("checkbox", { name: /Use visual clues/u }));
+    const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!form) throw new Error("missing capture form");
+    fireEvent.submit(form);
+    await screen.findByRole("heading", { level: 2, name: "Your football word set" });
+    fireEvent.click(screen.getByRole("button", { name: /start training/u }));
+
+    expect(await screen.findByText("Training without visual clues.")).toBeInTheDocument();
+    expect(screen.queryByText(/Creating a safe visual clue/u)).not.toBeInTheDocument();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/vocabulary/image"),
+      expect.anything(),
     );
   });
   it("requires explicit confirmation for an ambiguous selected meaning", async () => {
