@@ -1,11 +1,13 @@
 import {
   LEARNING_ALGORITHM_VERSION,
   createMasteryProjection,
+  planExerciseProgression,
   planAdaptiveSession,
   replayLearningEvents,
   type AdaptiveSelectionReason,
   type LearningEvent,
   type MasteryProjection,
+  type ExerciseProgressionPlan,
 } from "@vocabulary/domain-vocabulary";
 import type { ResumableCandidate } from "./interrupted-study-session";
 import type { CompletedStudySession } from "./local-study-history";
@@ -19,6 +21,7 @@ export interface LocalLearningProfileItem {
 export interface LocalAdaptiveReviewItem extends LocalLearningProfileItem {
   readonly reason: AdaptiveSelectionReason;
   readonly position: number;
+  readonly exerciseProgression: ExerciseProgressionPlan;
 }
 
 export interface LocalAdaptiveReviewPlan {
@@ -112,7 +115,16 @@ export function planLocalAdaptiveReview(
   const items = plan.items.map((planned) => {
     const profileItem = byKnowledge.get(planned.knowledgeId);
     if (!profileItem) throw new Error("Adaptive plan referenced an unknown local candidate.");
-    return Object.freeze({ ...profileItem, reason: planned.reason, position: planned.position });
+    return Object.freeze({
+      ...profileItem,
+      reason: planned.reason,
+      position: planned.position,
+      exerciseProgression: planExerciseProgression(profileItem.projection, [
+        "definition-choice",
+        "verified-cloze",
+        "typed-recall",
+      ]),
+    });
   });
   return Object.freeze({
     items: Object.freeze(items),

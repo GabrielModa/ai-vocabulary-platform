@@ -223,6 +223,10 @@ function sentenceWithGap(candidate: Candidate): string {
   return candidateSentenceWithGap(candidate);
 }
 
+function normalizedAnswer(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/gu, " ").trim();
+}
+
 function speak(text: string) {
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
@@ -521,13 +525,19 @@ export function CaptureWorkspace() {
   const trainingCandidates = candidates.filter(({ term }) => selected.has(term));
   const unresolvedSelectedCount = countUnresolvedSelectedCandidates(candidates, selected);
   const currentCandidate = trainingCandidates[questionIndex];
+  const currentExerciseMode =
+    title === "Adaptive review" && currentCandidate
+      ? adaptiveReviewPlan?.items.find(({ candidate }) => candidate.term === currentCandidate.term)
+          ?.exerciseProgression.selectedMode
+      : undefined;
   const optionPool = currentCandidate ? candidateAnswerOptions(currentCandidate, candidates) : [];
   const optionOffset = optionPool.length === 0 ? 0 : questionIndex % optionPool.length;
   const answerOptions = [...optionPool.slice(optionOffset), ...optionPool.slice(0, optionOffset)];
 
   function checkAnswer() {
     if (!chosenTerm || !currentCandidate || feedback) return;
-    const correct = chosenTerm === candidateCorrectAnswer(currentCandidate);
+    const correct =
+      normalizedAnswer(chosenTerm) === normalizedAnswer(candidateCorrectAnswer(currentCandidate));
     setFeedback(correct ? "correct" : "incorrect");
     if (correct) setScore((current) => current + 1);
     setAttempts((current) => [...current, { term: currentCandidate.term, chosenTerm, correct }]);
@@ -1143,9 +1153,11 @@ export function CaptureWorkspace() {
                   Question {questionIndex + 1} of {trainingCandidates.length}
                 </p>
                 <h2 id="training-title">
-                  {currentCandidate.exerciseKind === "definition-choice"
-                    ? "Which word matches the verified meaning?"
-                    : "Which word completes the sentence?"}
+                  {currentExerciseMode === "typed-recall"
+                    ? "Type the word that completes the sentence"
+                    : currentCandidate.exerciseKind === "definition-choice"
+                      ? "Which word matches the verified meaning?"
+                      : "Which word completes the sentence?"}
                 </h2>
                 <label className="visual-clue-setting compact">
                   <input
@@ -1180,39 +1192,64 @@ export function CaptureWorkspace() {
                     🔊
                   </button>
                 </div>
-                <fieldset className="answer-options" disabled={Boolean(feedback)}>
-                  <legend>Choose one answer</legend>
-                  {answerOptions.map((term, index) => (
-                    <div
-                      key={term}
-                      className={`answer-option${chosenTerm === term ? " selected" : ""}`}
-                    >
-                      <label>
-                        <input
-                          type="radio"
-                          name="answer"
-                          value={term}
-                          checked={chosenTerm === term}
-                          onChange={() => {
-                            setChosenTerm(term);
-                          }}
-                        />
-                        <span aria-hidden="true">{String.fromCharCode(65 + index)}</span>
-                        <strong>{term}</strong>
-                      </label>
-                      <button
-                        type="button"
-                        className="audio-button"
-                        aria-label={`Listen to ${term}`}
-                        onClick={() => {
-                          speak(term);
-                        }}
+                {currentExerciseMode === "typed-recall" ? (
+                  <div className="typed-recall-field">
+                    <label htmlFor="typed-recall-answer">Type your answer</label>
+                    <input
+                      id="typed-recall-answer"
+                      type="text"
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      disabled={Boolean(feedback)}
+                      value={chosenTerm ?? ""}
+                      onChange={(event) => {
+                        setChosenTerm(event.currentTarget.value);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          checkAnswer();
+                        }
+                      }}
+                    />
+                    <small>No options this time — retrieve the word from memory.</small>
+                  </div>
+                ) : (
+                  <fieldset className="answer-options" disabled={Boolean(feedback)}>
+                    <legend>Choose one answer</legend>
+                    {answerOptions.map((term, index) => (
+                      <div
+                        key={term}
+                        className={`answer-option${chosenTerm === term ? " selected" : ""}`}
                       >
-                        🔊
-                      </button>
-                    </div>
-                  ))}
-                </fieldset>
+                        <label>
+                          <input
+                            type="radio"
+                            name="answer"
+                            value={term}
+                            checked={chosenTerm === term}
+                            onChange={() => {
+                              setChosenTerm(term);
+                            }}
+                          />
+                          <span aria-hidden="true">{String.fromCharCode(65 + index)}</span>
+                          <strong>{term}</strong>
+                        </label>
+                        <button
+                          type="button"
+                          className="audio-button"
+                          aria-label={`Listen to ${term}`}
+                          onClick={() => {
+                            speak(term);
+                          }}
+                        >
+                          🔊
+                        </button>
+                      </div>
+                    ))}
+                  </fieldset>
+                )}
                 {!feedback ? (
                   <div className="question-navigation">
                     {questionIndex > 0 && (

@@ -478,6 +478,35 @@ describe("VocabularyPage", () => {
     expect(screen.getByText("Training without visual clues.")).toBeInTheDocument();
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
+  it("uses typed recall after repeated successful retrievals", () => {
+    for (let index = 0; index < 4; index += 1) {
+      appendCompletedStudySession(window.localStorage, {
+        version: 1,
+        sessionId: `typed-history-${String(index)}`,
+        completedAt: new Date(Date.now() - (40 - index * 7) * 24 * 60 * 60 * 1_000).toISOString(),
+        title: generatedSet.title,
+        level: "B1",
+        candidates: generatedSet.candidates,
+        selectedTerms: ["pitch"],
+        attempts: [{ term: "pitch", chosenTerm: "pitch", correct: true }],
+        score: { correct: 1, attempted: 1, percentage: 100 },
+      });
+    }
+
+    render(<VocabularyPage />);
+    fireEvent.click(screen.getByRole("checkbox", { name: /Use visual clues/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Start adaptive review" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Type the word that completes the sentence" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Type your answer" }), {
+      target: { value: " PiTcH " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Check my answer/u }));
+    expect(screen.getByText("Correct!", { selector: "p" })).toBeInTheDocument();
+  });
   it("requires explicit confirmation for an ambiguous selected meaning", async () => {
     vi.stubGlobal(
       "fetch",

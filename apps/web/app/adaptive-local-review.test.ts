@@ -85,6 +85,24 @@ describe("local adaptive review", () => {
     expect(Object.isFrozen(plan?.items)).toBe(true);
   });
 
+  it("attaches productive recall only after repeated successful retrieval", () => {
+    const history = [1, 2, 3, 4].map((number) =>
+      session(
+        `session-${String(number)}`,
+        `2026-08-${String(number).padStart(2, "0")}T10:00:00.000Z`,
+        [{ term: "Pitch", chosenTerm: "Pitch", correct: true }],
+      ),
+    );
+
+    const plan = planLocalAdaptiveReview(history, "2026-09-20T12:00:00.000Z", 2);
+    expect(
+      plan?.items.find(({ candidate }) => candidate.term === "Pitch")?.exerciseProgression,
+    ).toMatchObject({
+      selectedMode: "typed-recall",
+      reason: "productive-recall",
+    });
+  });
+
   it("returns no plan for empty history", () => {
     expect(planLocalAdaptiveReview([], "2026-08-20T12:00:00.000Z", 10)).toBeUndefined();
   });
