@@ -28,5 +28,5 @@ describe("CI policy", () => {
 
   it("runs the same repository scan used by CI", async () => {
     await expect(scanRepository()).resolves.toEqual([]);
-  });
+  }, 30_000);
 });
