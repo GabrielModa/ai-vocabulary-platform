@@ -18,6 +18,7 @@ export * from "./distractor-selection.js";
 export * from "./exercise-capability-planner.js";
 export * from "./exercise-composer.js";
 export * from "./exercise-pipeline.js";
+export * from "./exercise-progression.js";
 export * from "./exercise-validator.js";
 export * from "./frequency.js";
 export * from "./learning-artifact.js";
