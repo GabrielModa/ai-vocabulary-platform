@@ -263,6 +263,10 @@ export function CaptureWorkspace() {
   const [loading, setLoading] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
   const [error, setError] = useState<string>();
+  const [generationShortfall, setGenerationShortfall] = useState<{
+    readonly requested: number;
+    readonly delivered: number;
+  }>();
   const [level, setLevel] = useState("B1");
   const [draftId, setDraftId] = useState<string>();
   const [draftExpiresAt, setDraftExpiresAt] = useState<string>();
@@ -356,6 +360,11 @@ export function CaptureWorkspace() {
         applySensePreference(candidate, preferences),
       );
       setCandidates(preferredCandidates);
+      setGenerationShortfall(
+        preferredCandidates.length < requestedCount
+          ? { requested: requestedCount, delivered: preferredCandidates.length }
+          : undefined,
+      );
       setTitle(result.generation.title);
       setDraftId(result.draft.draftId);
       setDraftExpiresAt(result.draft.expiresAt);
@@ -451,6 +460,13 @@ export function CaptureWorkspace() {
         return;
       }
 
+      if (publishedCandidateIds.length < 4) {
+        setError(
+          `Only ${String(publishedCandidateIds.length)} words produced verified exercises. Select or generate at least 4.`,
+        );
+        return;
+      }
+
       const response = await fetch("/api/study-sessions", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -476,6 +492,14 @@ export function CaptureWorkspace() {
       }
 
       const session = (await response.json()) as CreatedStudySession;
+      const publishedIds = new Set(publishedCandidateIds);
+      setSelected(
+        new Set(
+          candidates
+            .filter(({ candidateId }) => candidateId && publishedIds.has(candidateId))
+            .map(({ term }) => term),
+        ),
+      );
       setStudySessionId(session.sessionId);
       setTraining(true);
     } catch {
@@ -575,6 +599,7 @@ export function CaptureWorkspace() {
   function resetSession() {
     clearInterruptedStudySession(window.localStorage);
     setReviewing(false);
+    setGenerationShortfall(undefined);
     setTraining(false);
     setQuestionIndex(0);
     setChosenTerm(undefined);
@@ -911,6 +936,15 @@ export function CaptureWorkspace() {
                 <small>Explore meaning, examples, and audio.</small>
               </button>
             </div>
+            {generationShortfall && (
+              <div className="adaptive-review-callout" aria-live="polite">
+                <p>
+                  {generationShortfall.delivered} of {generationShortfall.requested} useful words
+                  are ready.
+                </p>
+                <small>Try a broader topic or request a smaller set.</small>
+              </div>
+            )}
             <ul className="candidate-list">
               {candidates.map((candidate) => {
                 const compatibleSenses = compatibleLexicalSenses(candidate);

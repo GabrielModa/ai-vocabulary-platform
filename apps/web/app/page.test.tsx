@@ -230,6 +230,7 @@ describe("VocabularyPage", () => {
   });
   it("shows explicit selectable review before training", async () => {
     render(<VocabularyPage />);
+    fireEvent.change(screen.getByLabelText("Number of words"), { target: { value: "4" } });
     const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
     if (!form) throw new Error("missing capture form");
     fireEvent.submit(form);
@@ -242,6 +243,31 @@ describe("VocabularyPage", () => {
     expect(screen.queryByText("The playing surface.")).not.toBeInTheDocument();
     expect(screen.queryByText("The pitch is wet.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Listen to pitch" })).toBeInTheDocument();
+  });
+
+  it("shows an honest locally derived notice when generation is partial", async () => {
+    const partial = {
+      ...generatedSet,
+      candidates: generatedSet.candidates.slice(0, 2),
+      generationFulfillment: {
+        status: "partial",
+        requestedCount: 4,
+        deliveredCount: 2,
+        deficitCount: 2,
+        attempts: 3,
+        message: "<script>untrusted</script>",
+      },
+    };
+    vi.stubGlobal("fetch", fetchForGeneration(partial));
+    render(<VocabularyPage />);
+    fireEvent.change(screen.getByLabelText("Number of words"), { target: { value: "4" } });
+    const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!form) throw new Error("missing capture form");
+    fireEvent.submit(form);
+
+    expect(await screen.findByText("2 of 4 useful words are ready.")).toBeInTheDocument();
+    expect(screen.getByText("Try a broader topic or request a smaller set.")).toBeInTheDocument();
+    expect(screen.queryByText(/untrusted/u)).not.toBeInTheDocument();
   });
 
   it("keeps Test retrieval-first and reveals verified content only in Study mode", async () => {
@@ -304,6 +330,40 @@ describe("VocabularyPage", () => {
         }),
       }),
     );
+  });
+
+  it("does not start when final verification publishes fewer than four candidates", async () => {
+    const baseFetch = fetchForGeneration(generatedSet);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        if (url.includes("/api/vocabulary/drafts/") && url.endsWith("/resolve")) {
+          return Promise.resolve(
+            responseJson({
+              draftId: "draft-verified-subset",
+              publishedCandidateIds: generatedSet.candidates
+                .slice(0, 3)
+                .map(({ candidateId }) => candidateId),
+              omittedCandidateIds: [generatedSet.candidates[3]?.candidateId],
+            }),
+          );
+        }
+        return baseFetch(input);
+      }),
+    );
+    render(<VocabularyPage />);
+    const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!form) throw new Error("missing capture form");
+    fireEvent.submit(form);
+    await screen.findByRole("heading", { level: 2, name: "Your football word set" });
+    fireEvent.click(screen.getByRole("button", { name: /start training/u }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Only 3 words produced verified exercises. Select or generate at least 4.",
+    );
+    expect(screen.queryByText("Question 1 of 4")).not.toBeInTheDocument();
   });
   it("runs the complete training flow without requesting visual clues", async () => {
     render(<VocabularyPage />);
