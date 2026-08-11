@@ -16,6 +16,7 @@ import {
   loadLocalPronunciationLookup,
 } from "./lexical-enrichment";
 import { generateWithDeficitReplacement } from "./replacement-generation";
+import { suggestCandidatesWithTrustedFirst } from "./candidate-suggestion";
 
 const generator = new OllamaVocabularyGenerator({
   ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
@@ -33,7 +34,12 @@ async function generate(input: unknown) {
   ]);
 
   return generateWithDeficitReplacement(request, {
-    suggest: (generationRequest, options) => generator.generate(generationRequest, options),
+    suggest: (generationRequest, options) =>
+      suggestCandidatesWithTrustedFirst(
+        generationRequest,
+        options,
+        (fallbackRequest, fallbackOptions) => generator.generate(fallbackRequest, fallbackOptions),
+      ),
     enrich: async (generated) => {
       const [lexicalLookup, frequencyLookup, exampleLookup, pronunciationLookup] = await lookups;
       return enrichVocabularySet(
