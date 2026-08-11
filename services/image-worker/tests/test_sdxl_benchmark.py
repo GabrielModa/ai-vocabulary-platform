@@ -1,11 +1,12 @@
 import sys
 from pathlib import Path
 import unittest
+from PIL import Image
 
 SERVICE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SERVICE_ROOT / "scripts"))
 
-from benchmark_sdxl import load_cases, visual_prompt
+from benchmark_sdxl import image_quality, load_cases, visual_prompt
 
 
 class SdxlBenchmarkTest(unittest.TestCase):
@@ -36,7 +37,23 @@ class SdxlBenchmarkTest(unittest.TestCase):
         self.assertIn("dissatisfaction because expectations were not realized", prompt)
         self.assertIn("A player sits after losing a final", prompt)
         self.assertIn("No text", prompt)
-        self.assertIn("unrelated objects", prompt)
+        self.assertLess(len(prompt.split()), 77)
+
+    def test_black_or_nearly_constant_images_fail_visual_validation(self):
+        black = Image.new("RGB", (32, 32), color=(0, 0, 0))
+        valid, dynamic_range, deviation = image_quality(black)
+        self.assertFalse(valid)
+        self.assertEqual(dynamic_range, 0)
+        self.assertEqual(deviation, 0)
+
+        varied = Image.new("RGB", (32, 32), color=(240, 240, 240))
+        for x in range(16):
+            for y in range(32):
+                varied.putpixel((x, y), (20, 30, 40))
+        valid, dynamic_range, deviation = image_quality(varied)
+        self.assertTrue(valid)
+        self.assertGreater(dynamic_range, 100)
+        self.assertGreater(deviation, 20)
 
 
 if __name__ == "__main__":

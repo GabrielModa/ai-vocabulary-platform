@@ -7,9 +7,10 @@ notebook before replacing the working image engine.
 
 ## Current checkpoint
 
-The isolated benchmark harness is implemented and verified. Real model execution remains pending
-because it may download several gigabytes and consume substantial CPU/GPU time. This task remains
-open until at least one viable device produces an image and JSON report.
+The isolated harness is implemented and verified. A real Intel GPU run completed on 2026-08-11 but
+produced a fully black frame, so SDXL is rejected for production on that path. The harness now fails
+closed for constant images. CPU remains an optional diagnostic; the product keeps the working LCM
+pipeline.
 
 ## Allowed files
 
@@ -45,7 +46,8 @@ open until at least one viable device produces an image and JSON report.
 - Focused benchmark contract tests.
 - Complete image-worker test suite.
 - Git ignore verification for `.venv-sdxl` and benchmark outputs.
-- One real benchmark case per viable device before considering worker integration.
+- One real benchmark case per viable device before considering worker integration. The Intel GPU was
+  measured and rejected; no integration is authorized by this task.
 
 ## Rollback
 

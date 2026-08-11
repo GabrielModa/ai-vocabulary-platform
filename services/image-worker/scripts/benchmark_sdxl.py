@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import psutil
+from PIL import Image, ImageStat
 
 DEFAULT_MODEL = "stabilityai/stable-diffusion-xl-base-1.0"
 DEFAULT_CASES = Path(__file__).with_name("sdxl-benchmark-cases.json")
@@ -30,6 +31,9 @@ class BenchmarkResult:
     width: int
     height: int
     steps: int
+    visually_valid: bool
+    dynamic_range: int
+    grayscale_deviation: float
 
 
 def memory_snapshot() -> tuple[float, float]:
@@ -41,16 +45,18 @@ def memory_snapshot() -> tuple[float, float]:
 
 
 def visual_prompt(term: str, meaning: str, context: str) -> str:
-    return " ".join(
-        (
-            "A clear educational flat editorial illustration for an English vocabulary learner.",
-            f"The exact target concept is '{term}', meaning: {meaning}.",
-            f"Show this literal scene: {context}",
-            "Use one coherent everyday scene, one obvious focal subject, crisp edges, natural proportions, clear facial expression when relevant, balanced lighting, and an uncluttered background.",
-            "The image must communicate the meaning through visible people, objects, actions, or relationships.",
-            "No text, letters, captions, signs, labels, logos, watermarks, collage, split panels, abstract symbols, blur, haze, malformed hands, duplicate people, or unrelated objects.",
-        )
+    return (
+        f"Educational illustration. The exact target concept is '{term}', meaning: {meaning}. "
+        f"Literal scene: {context} No text."
     )
+
+
+def image_quality(image: Image.Image) -> tuple[bool, int, float]:
+    grayscale = image.convert("L")
+    minimum, maximum = grayscale.getextrema()
+    dynamic_range = int(maximum) - int(minimum)
+    deviation = float(ImageStat.Stat(grayscale).stddev[0])
+    return dynamic_range >= 24 and deviation >= 8.0, dynamic_range, round(deviation, 2)
 
 
 def load_cases(path: Path) -> list[dict[str, str]]:
@@ -150,7 +156,9 @@ def run() -> int:
         elapsed = time.perf_counter() - started
         after_rss, after_available = memory_snapshot()
         output_file = args.output / f"{index:02d}-{case['term']}.png"
-        generated.images[0].save(output_file)
+        image = generated.images[0]
+        image.save(output_file)
+        visually_valid, dynamic_range, grayscale_deviation = image_quality(image)
         result = BenchmarkResult(
             term=case["term"],
             elapsed_seconds=round(elapsed, 2),
@@ -163,9 +171,15 @@ def run() -> int:
             width=args.width,
             height=args.height,
             steps=args.steps,
+            visually_valid=visually_valid,
+            dynamic_range=dynamic_range,
+            grayscale_deviation=grayscale_deviation,
         )
         results.append(result)
-        print(f"[sdxl] {result.term}: {result.elapsed_seconds}s -> {output_file}")
+        print(
+            f"[sdxl] {result.term}: {result.elapsed_seconds}s, "
+            f"visually_valid={result.visually_valid} -> {output_file}"
+        )
 
     report = {
         "model": args.model,
@@ -176,7 +190,7 @@ def run() -> int:
     report_file = args.output / "benchmark-report.json"
     report_file.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"[sdxl] Report: {report_file}")
-    return 0
+    return 0 if all(item.visually_valid for item in results) else 2
 
 
 if __name__ == "__main__":
