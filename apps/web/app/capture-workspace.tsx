@@ -31,6 +31,7 @@ import {
   type CompletedStudySession,
 } from "./local-study-history";
 import { planLocalAdaptiveReview } from "./adaptive-local-review";
+import { buildVerifiedErrorFeedback } from "./verified-error-feedback";
 
 type Mode = "words" | "topic" | "photo";
 type ReviewMode = "test" | "study";
@@ -529,6 +530,10 @@ export function CaptureWorkspace() {
     title === "Adaptive review" && currentCandidate
       ? adaptiveReviewPlan?.items.find(({ candidate }) => candidate.term === currentCandidate.term)
           ?.exerciseProgression.selectedMode
+      : undefined;
+  const verifiedErrorFeedback =
+    feedback === "incorrect" && currentCandidate && chosenTerm
+      ? buildVerifiedErrorFeedback(currentCandidate, chosenTerm, candidates)
       : undefined;
   const optionPool = currentCandidate ? candidateAnswerOptions(currentCandidate, candidates) : [];
   const optionOffset = optionPool.length === 0 ? 0 : questionIndex % optionPool.length;
@@ -1200,6 +1205,7 @@ export function CaptureWorkspace() {
                       type="text"
                       autoComplete="off"
                       autoCapitalize="none"
+                      maxLength={200}
                       spellCheck={false}
                       disabled={Boolean(feedback)}
                       value={chosenTerm ?? ""}
@@ -1278,6 +1284,11 @@ export function CaptureWorkspace() {
                       {feedback === "correct" ? "Correct!" : "Not quite — keep going."}
                     </p>
                     <h3>The answer is “{currentCandidate.term}”.</h3>
+                    {verifiedErrorFeedback && (
+                      <p className={`verified-error-feedback ${verifiedErrorFeedback.kind}`}>
+                        <strong>Why:</strong> {verifiedErrorFeedback.message}
+                      </p>
+                    )}
                     <p className="speakable-line">
                       {currentCandidate.meaning}
                       <button

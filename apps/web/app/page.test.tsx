@@ -556,6 +556,9 @@ describe("VocabularyPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /Check my answer/u }));
     expect(screen.getByRole("status")).toHaveTextContent("Not quite — keep going.");
     expect(screen.getByRole("status")).toHaveTextContent("The answer is “pitch”.");
+    expect(
+      screen.getByText(/“pass” is a verb, while this gap needs the noun “pitch”/u),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Next question/u }));
     expect(screen.getByText("Question 2 of 4")).toBeInTheDocument();
     expect(screen.queryByText(/Session complete/u)).not.toBeInTheDocument();

@@ -633,6 +633,13 @@ textarea {
   color: #a8adb7;
 }
 
+.verified-error-feedback {
+  border-inline-start: 4px solid #c6ff48;
+  border-radius: 0.4rem;
+  background: #20251c;
+  padding: 0.85rem 1rem;
+}
+
 .answer-option {
   display: grid;
   grid-template-columns: 1fr auto;
