@@ -241,6 +241,7 @@ textarea {
   grid-template-columns: minmax(12rem, 0.55fr) minmax(18rem, 1.45fr);
 }
 .review-heading,
+.review-mode,
 .candidate-list,
 .review-actions,
 .privacy-note {
@@ -254,6 +255,31 @@ textarea {
 }
 .review-heading h2 {
   margin-bottom: 0.4rem;
+}
+.review-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.review-mode button {
+  display: grid;
+  gap: 0.25rem;
+  min-height: 4.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #3a4048;
+  border-radius: 0.75rem;
+  background: #101318;
+  color: #f5f4ef;
+  text-align: left;
+  cursor: pointer;
+}
+.review-mode button[aria-pressed="true"] {
+  border-color: #c6ff48;
+  background: rgb(198 255 72 / 8%);
+}
+.review-mode small {
+  color: #aeb4bd;
+  font-weight: 400;
 }
 .candidate-list {
   display: grid;
@@ -296,6 +322,27 @@ textarea {
   align-self: center;
   color: #c6ff48;
   text-transform: uppercase;
+}
+.study-details {
+  display: grid;
+  flex-basis: 100%;
+  gap: 0.65rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #30363e;
+}
+.study-details > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.study-details > div > span {
+  display: grid;
+  gap: 0.25rem;
+}
+.study-details > div > span > span {
+  color: #d8dde3;
+  line-height: 1.5;
 }
 .candidate label > span > span {
   grid-column: 1 / -1;

@@ -15,6 +15,11 @@ const generatedSet = {
       type: "noun",
       example: "The pitch is wet.",
       challenge: "The players walked onto the ___ before the match.",
+      contexts: [
+        "The pitch is wet.",
+        "They discussed the pitch before kickoff.",
+        "The groundskeeper inspected the pitch.",
+      ],
     },
     {
       candidateId: "candidate:pass",
@@ -177,7 +182,7 @@ describe("VocabularyPage", () => {
     expect(screen.getByRole("button", { name: /Photo/u })).toBeInTheDocument();
     expect(screen.getByLabelText("English level")).toHaveValue("B1");
   });
-  it("shows explicit editable review before training", async () => {
+  it("shows explicit selectable review before training", async () => {
     render(<VocabularyPage />);
     const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
     if (!form) throw new Error("missing capture form");
@@ -186,11 +191,43 @@ describe("VocabularyPage", () => {
       await screen.findByRole("heading", { level: 2, name: "Your football word set" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("4 selected");
-    expect(screen.getByRole("button", { name: "Edit pitch" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Study mode" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start training/u })).toBeEnabled();
     expect(screen.queryByText("The playing surface.")).not.toBeInTheDocument();
     expect(screen.queryByText("The pitch is wet.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Listen to pitch" })).toBeInTheDocument();
+  });
+
+  it("keeps Test retrieval-first and reveals verified content only in Study mode", async () => {
+    render(<VocabularyPage />);
+    const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!form) throw new Error("missing capture form");
+    fireEvent.submit(form);
+    await screen.findByRole("heading", { level: 2, name: "Your football word set" });
+
+    expect(screen.getByRole("button", { name: "Test mode" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.queryByText("The playing surface.")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Study mode" }));
+
+    expect(screen.getByText("The playing surface.")).toBeInTheDocument();
+    expect(screen.getByText("The pitch is wet.")).toBeInTheDocument();
+    expect(screen.getByText("They discussed the pitch before kickoff.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Listen to the meaning of pitch" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Listen to the example for pitch" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Listen to context 2 for pitch" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Test mode" }));
+    expect(screen.queryByText("The playing surface.")).not.toBeInTheDocument();
+    expect(screen.queryByText("The pitch is wet.")).not.toBeInTheDocument();
   });
 
   it("creates a draft-backed study session before training", async () => {

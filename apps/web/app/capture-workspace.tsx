@@ -20,6 +20,7 @@ import {
 import { readVisualCluesEnabled, writeVisualCluesEnabled } from "./visual-clue-preferences";
 
 type Mode = "words" | "topic" | "photo";
+type ReviewMode = "test" | "study";
 const modeCopy: Record<Mode, { title: string; description: string }> = {
   words: {
     title: "Type your words",
@@ -210,6 +211,7 @@ function speakSentenceWithGap(text: string) {
 export function CaptureWorkspace() {
   const [mode, setMode] = useState<Mode>("topic");
   const [reviewing, setReviewing] = useState(false);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>("test");
   const [training, setTraining] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [chosenTerm, setChosenTerm] = useState<string>();
@@ -279,6 +281,7 @@ export function CaptureWorkspace() {
       setConfirmedMeanings(new Set());
       setLevel(requestedLevel);
       setReviewing(true);
+      setReviewMode("test");
       if (visualCluesEnabled) {
         for (const candidate of preferredCandidates
           .filter((item) => !requiresSenseConfirmation(item))
@@ -639,6 +642,30 @@ export function CaptureWorkspace() {
                 {selected.size} selected
               </span>
             </div>
+            <div className="review-mode" role="group" aria-label="Review mode">
+              <button
+                type="button"
+                aria-label="Test mode"
+                aria-pressed={reviewMode === "test"}
+                onClick={() => {
+                  setReviewMode("test");
+                }}
+              >
+                Test
+                <small>Recall first; meanings stay hidden.</small>
+              </button>
+              <button
+                type="button"
+                aria-label="Study mode"
+                aria-pressed={reviewMode === "study"}
+                onClick={() => {
+                  setReviewMode("study");
+                }}
+              >
+                Study
+                <small>Explore meaning, examples, and audio.</small>
+              </button>
+            </div>
             <ul className="candidate-list">
               {candidates.map((candidate) => {
                 const compatibleSenses = compatibleLexicalSenses(candidate);
@@ -669,13 +696,55 @@ export function CaptureWorkspace() {
                     >
                       🔊
                     </button>
-                    <button
-                      type="button"
-                      className="text-button"
-                      aria-label={`Edit ${candidate.term}`}
-                    >
-                      Edit
-                    </button>
+                    {reviewMode === "study" && (
+                      <div className="study-details">
+                        <div>
+                          <span>
+                            <strong>Meaning</strong>
+                            <span>{candidate.meaning}</span>
+                          </span>
+                          <button
+                            type="button"
+                            className="audio-button"
+                            aria-label={`Listen to the meaning of ${candidate.term}`}
+                            onClick={() => {
+                              speak(candidate.meaning);
+                            }}
+                          >
+                            ðŸ”Š
+                          </button>
+                        </div>
+                        {[candidate.example, ...(candidate.contexts ?? [])]
+                          .filter(
+                            (context, index, contexts) =>
+                              context.trim().length > 0 && contexts.indexOf(context) === index,
+                          )
+                          .map((context, index) => (
+                            <div key={`${candidate.term}-context-${String(index)}`}>
+                              <span>
+                                <strong>
+                                  {index === 0 ? "Example" : `Context ${String(index + 1)}`}
+                                </strong>
+                                <span>{context}</span>
+                              </span>
+                              <button
+                                type="button"
+                                className="audio-button"
+                                aria-label={
+                                  index === 0
+                                    ? `Listen to the example for ${candidate.term}`
+                                    : `Listen to context ${String(index + 1)} for ${candidate.term}`
+                                }
+                                onClick={() => {
+                                  speak(context);
+                                }}
+                              >
+                                ðŸ”Š
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    )}
                     {needsConfirmation && (
                       <button
                         type="button"
