@@ -3,6 +3,7 @@ export * from "./adaptive-session-planner.js";
 export * from "./candidate-pipeline.js";
 export * from "./candidate-ranking.js";
 export * from "./candidate-quality.js";
+export * from "./candidate-learning-evidence.js";
 export * from "./collection.js";
 export * from "./challenges.js";
 export * from "./cmudict.js";

@@ -158,10 +158,13 @@ describe("server lexical enrichment", () => {
       generated,
       lookup([familySense]),
       frequencyByWord({ uncle: uncleFrequency }),
+      undefined,
+      undefined,
+      { topic: "family", level: "B1" },
     );
 
     expect(enriched.candidates[0]).toMatchObject({
-      rankingScore: 47,
+      rankingScore: 68,
       frequencyPercentile: 0.72,
       frequencyPerMillion: 157.254902,
       frequencyProvenance: {
@@ -171,8 +174,19 @@ describe("server lexical enrichment", () => {
       },
       rankingContributions: [
         { reason: "verified-sense", points: 40 },
+        { reason: "topic-relevance", points: 6 },
         { reason: "frequency-supported", points: 7 },
+        { reason: "level-aligned", points: 15 },
       ],
+      learningEvidence: {
+        topicRelevance: { score: 0.25, reasonCodes: ["ai-topic-suggestion-only"] },
+        cefrEstimate: {
+          level: "B1",
+          status: "provisional",
+          method: "subtlex-percentile-v1",
+        },
+        levelDistance: 0,
+      },
     });
   });
 
@@ -259,6 +273,10 @@ describe("server lexical enrichment", () => {
     const enriched = await enrichVocabularySet(
       vocabularySet,
       lookup([footballSense, punishmentSense]),
+      undefined,
+      undefined,
+      undefined,
+      { topic: "football", level: "A2" },
     );
 
     expect(enriched.candidates[0]).toMatchObject({
@@ -266,6 +284,16 @@ describe("server lexical enrichment", () => {
       senseId: footballSense.senseId,
       meaning: footballSense.definition,
       lexicalProvenance: { provider: "open-english-wordnet", generated: false },
+      learningEvidence: {
+        topicRelevance: {
+          score: 1,
+          reasonCodes: ["verified-definition-topic-match"],
+        },
+      },
+      rankingContributions: [
+        { reason: "verified-sense", points: 40 },
+        { reason: "topic-relevance", points: 25 },
+      ],
     });
   });
 

@@ -39,6 +39,7 @@ async function generate(input: unknown) {
     frequencyLookup,
     exampleLookup,
     pronunciationLookup,
+    { topic: request.topic, level: request.level },
   );
 }
 

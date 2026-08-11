@@ -3,6 +3,7 @@ import {
   buildVerifiedCandidatePipeline,
   CmuPronunciationProvider,
   evaluateCandidateQuality,
+  evaluateCandidateLearningEvidence,
   evaluateSetQuality,
   OewnExampleProvider,
   OewnLexicalProvider,
@@ -14,6 +15,7 @@ import {
   frequencyContentSchema,
   pronunciationContentSchema,
   type CandidateLexicalLookup,
+  type CandidateLearningEvidence,
   type CandidateQualityReport,
   type CandidateScoreContribution,
   type ExampleContent,
@@ -26,6 +28,7 @@ import {
   type PronunciationContent,
   type PronunciationProvider,
   type SetQualityReport,
+  type CefrLevel,
 } from "@vocabulary/domain-vocabulary";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -60,6 +63,7 @@ export type EnrichedCandidate = GeneratedCandidate & {
   readonly exerciseKind?: ExerciseKind;
   readonly exercisePipelineOutcome?: ExercisePipelineOutcome;
   readonly qualityReport: CandidateQualityReport;
+  readonly learningEvidence?: CandidateLearningEvidence;
 };
 
 export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candidates"> {
@@ -202,6 +206,7 @@ function adaptCandidate(
   exercisePipelineOutcome: ExercisePipelineOutcome | undefined,
   pronunciations: readonly PronunciationContent[],
   qualityReport: CandidateQualityReport,
+  learningEvidence: CandidateLearningEvidence | undefined,
 ): EnrichedCandidate {
   const firstExample = examples[0];
   const base = {
@@ -226,6 +231,7 @@ function adaptCandidate(
     rankingScore: ranking.score,
     rankingContributions: ranking.contributions,
     qualityReport,
+    ...(learningEvidence ? { learningEvidence } : {}),
     ...(frequency
       ? {
           frequencyPercentile: frequency.percentile,
@@ -323,6 +329,7 @@ export async function enrichVocabularySet(
   frequencyLookup?: FrequencyLookup,
   exampleLookup?: ExampleLookup,
   pronunciationLookup?: PronunciationLookup,
+  context?: { readonly topic: string; readonly level: CefrLevel },
 ): Promise<EnrichedVocabularySet> {
   const generatedByKey = new Map<string, GeneratedCandidate[]>();
   for (const candidate of vocabularySet.candidates) {
@@ -405,13 +412,52 @@ export async function enrichVocabularySet(
       pronunciations[index] ?? [],
     ]),
   );
+  const learningEvidenceByCandidateId = new Map(
+    context
+      ? pipeline.candidates.map((candidate) => {
+          const examplesBySense = examplesBySenseByCandidateId.get(candidate.candidateId) ?? {};
+          const frequency = frequencyByCandidateId.get(candidate.candidateId);
+          return [
+            candidate.candidateId,
+            evaluateCandidateLearningEvidence({
+              topic: context.topic,
+              requestedLevel: context.level,
+              normalizedLemma: candidate.normalizedLemma,
+              ...(candidate.selectedSense
+                ? { verifiedDefinition: candidate.selectedSense.definition }
+                : {}),
+              verifiedExamples: Object.values(examplesBySense).flatMap((examples) =>
+                examples.map(({ sentence }) => sentence),
+              ),
+              selectionReasons: candidate.selectionReasons,
+              ...(frequency ? { frequencyPercentile: frequency.percentile } : {}),
+            }),
+          ] as const;
+        })
+      : [],
+  );
 
   const ranking = rankLearningCandidates(
     pipeline.candidates.map((candidate) => {
       const frequency = frequencyByCandidateId.get(candidate.candidateId);
+      const learningEvidence = learningEvidenceByCandidateId.get(candidate.candidateId);
       return {
         candidate,
-        ...(frequency ? { evidence: { frequencyPercentile: frequency.percentile } } : {}),
+        ...(frequency || learningEvidence
+          ? {
+              evidence: {
+                ...(frequency ? { frequencyPercentile: frequency.percentile } : {}),
+                ...(learningEvidence
+                  ? {
+                      topicRelevance: learningEvidence.topicRelevance.score,
+                      ...(learningEvidence.levelDistance !== undefined
+                        ? { levelDistance: learningEvidence.levelDistance }
+                        : {}),
+                    }
+                  : {}),
+              },
+            }
+          : {}),
       };
     }),
   );
@@ -473,6 +519,7 @@ export async function enrichVocabularySet(
                 verifiedExampleCount: 0,
                 hasFrequencyEvidence: false,
               }),
+            learningEvidenceByCandidateId.get(ranked.candidate.candidateId),
           ),
         ]
       : [];
