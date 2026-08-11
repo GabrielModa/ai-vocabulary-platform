@@ -10,7 +10,13 @@ export const vocabularyGenerationStages = [
 
 export type VocabularyGenerationStage = (typeof vocabularyGenerationStages)[number] | "unknown";
 
-export const vocabularyGenerationOutcomes = ["exact", "partial", "rejected", "failed"] as const;
+export const vocabularyGenerationOutcomes = [
+  "succeeded",
+  "exact",
+  "partial",
+  "rejected",
+  "failed",
+] as const;
 
 export type VocabularyGenerationOutcome = (typeof vocabularyGenerationOutcomes)[number];
 

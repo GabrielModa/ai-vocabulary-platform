@@ -49,4 +49,19 @@ describe("vocabulary generation metrics", () => {
       cacheHit: false,
     });
   });
+
+  it("accepts a successful intermediate stage", () => {
+    expect(
+      normalizeVocabularyGenerationMetricFields({
+        stage: "candidate-suggestion",
+        outcome: "succeeded",
+        durationMs: 5,
+        requestedCount: 6,
+        deliveredCount: 6,
+        rejectedCount: 0,
+        attemptCount: 1,
+        cacheHit: false,
+      }).outcome,
+    ).toBe("succeeded");
+  });
 });

@@ -216,6 +216,9 @@ importers:
       '@vocabulary/domain-vocabulary':
         specifier: workspace:*
         version: link:../../packages/vocabulary
+      '@vocabulary/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       next:
         specifier: 16.2.12
         version: 16.2.12(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

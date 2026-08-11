@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LocalVocabularyRequest, LocalVocabularySet } from "@vocabulary/ai";
 import type { EnrichedVocabularySet } from "./lexical-enrichment";
 import { generateWithDeficitReplacement } from "./replacement-generation";
+import type { VocabularyGenerationMetricFields } from "@vocabulary/observability";
 
 const request: LocalVocabularyRequest = {
   topic: "football",
@@ -87,6 +88,59 @@ function enriched(
 }
 
 describe("deficit-only vocabulary replacement", () => {
+  it("measures each attempt and the final fulfillment without learner content", async () => {
+    const metrics: VocabularyGenerationMetricFields[] = [];
+    const times = [0, 10, 30, 40, 70, 80, 120, 130, 150, 160];
+    let timeIndex = 0;
+    const batches = [["corner", "unknown", "penalty"], ["referee"]];
+    let suggestionIndex = 0;
+
+    const result = await generateWithDeficitReplacement(request, {
+      now: () => times[timeIndex++] ?? 160,
+      recordMetric: (metric) => metrics.push(metric),
+      suggest: () => Promise.resolve(generated(batches[suggestionIndex++] ?? [])),
+      enrich: (value) => Promise.resolve(enriched(value, new Set(["unknown"]))),
+    });
+
+    expect(result.generationFulfillment.status).toBe("exact");
+    expect(metrics).toEqual([
+      expect.objectContaining({
+        stage: "candidate-suggestion",
+        outcome: "succeeded",
+        durationMs: 20,
+        attemptCount: 1,
+      }),
+      expect.objectContaining({
+        stage: "enrichment",
+        outcome: "succeeded",
+        durationMs: 30,
+        attemptCount: 1,
+      }),
+      expect.objectContaining({
+        stage: "candidate-suggestion",
+        outcome: "succeeded",
+        durationMs: 40,
+        attemptCount: 2,
+      }),
+      expect.objectContaining({
+        stage: "enrichment",
+        outcome: "succeeded",
+        durationMs: 20,
+        attemptCount: 2,
+      }),
+      expect.objectContaining({
+        stage: "replacement",
+        outcome: "exact",
+        requestedCount: 3,
+        deliveredCount: 3,
+        rejectedCount: 1,
+        attemptCount: 2,
+      }),
+    ]);
+    expect(JSON.stringify(metrics)).not.toContain("football");
+    expect(JSON.stringify(metrics)).not.toContain("corner");
+  });
+
   it("preserves usable candidates and requests only the missing count", async () => {
     const requests: { count: number; excluded: readonly string[] }[] = [];
     const batches = [["corner", "unknown", "penalty"], ["referee"]];

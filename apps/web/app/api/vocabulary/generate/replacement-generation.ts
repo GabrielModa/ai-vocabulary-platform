@@ -4,6 +4,12 @@ import type {
   LocalVocabularySet,
 } from "@vocabulary/ai";
 import { evaluateSetQuality } from "@vocabulary/domain-vocabulary";
+import {
+  normalizeVocabularyGenerationMetricFields,
+  type VocabularyGenerationMetricFields,
+  type VocabularyGenerationOutcome,
+  type VocabularyGenerationStage,
+} from "@vocabulary/observability";
 import type { EnrichedCandidate, EnrichedVocabularySet } from "./lexical-enrichment";
 
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -15,6 +21,18 @@ export interface DeficitReplacementDependencies {
   ) => Promise<LocalVocabularySet>;
   readonly enrich: (value: LocalVocabularySet) => Promise<EnrichedVocabularySet>;
   readonly maxAttempts?: number;
+  readonly now?: () => number;
+  readonly recordMetric?: (metric: VocabularyGenerationMetricFields) => void;
+}
+
+interface MetricInput {
+  readonly stage: VocabularyGenerationStage;
+  readonly outcome: VocabularyGenerationOutcome;
+  readonly startedAt: number;
+  readonly requestedCount: number;
+  readonly deliveredCount: number;
+  readonly rejectedCount: number;
+  readonly attemptCount: number;
 }
 
 function normalizedTerm(term: string): string {
@@ -29,6 +47,22 @@ export async function generateWithDeficitReplacement(
   request: LocalVocabularyRequest,
   dependencies: DeficitReplacementDependencies,
 ): Promise<EnrichedVocabularySet> {
+  const now = dependencies.now ?? (() => performance.now());
+  const totalStartedAt = now();
+  const record = (input: MetricInput): void => {
+    dependencies.recordMetric?.(
+      normalizeVocabularyGenerationMetricFields({
+        stage: input.stage,
+        outcome: input.outcome,
+        durationMs: now() - input.startedAt,
+        requestedCount: input.requestedCount,
+        deliveredCount: input.deliveredCount,
+        rejectedCount: input.rejectedCount,
+        attemptCount: input.attemptCount,
+        cacheHit: false,
+      }),
+    );
+  };
   const maxAttempts = Math.max(1, Math.trunc(dependencies.maxAttempts ?? DEFAULT_MAX_ATTEMPTS));
   const seenTerms = new Set<string>();
   const usableByTerm = new Map<string, EnrichedCandidate>();
@@ -44,11 +78,22 @@ export async function generateWithDeficitReplacement(
   while (usableByTerm.size < request.requestedCount && attempts < maxAttempts) {
     const deficit = request.requestedCount - usableByTerm.size;
     const excludedTerms = [...seenTerms].sort();
+    const attemptNumber = attempts + 1;
+    const suggestionStartedAt = now();
     const suggested = await dependencies.suggest(
       { ...request, requestedCount: deficit },
       { excludedTerms },
     );
     attempts += 1;
+    record({
+      stage: "candidate-suggestion",
+      outcome: "succeeded",
+      startedAt: suggestionStartedAt,
+      requestedCount: deficit,
+      deliveredCount: suggested.candidates.length,
+      rejectedCount: 0,
+      attemptCount: attemptNumber,
+    });
     if (attempts === 1) title = suggested.title;
 
     const freshCandidates = suggested.candidates.filter((candidate) => {
@@ -59,7 +104,21 @@ export async function generateWithDeficitReplacement(
     });
     if (freshCandidates.length === 0) continue;
 
+    const enrichmentStartedAt = now();
     const enriched = await dependencies.enrich({ ...suggested, candidates: freshCandidates });
+    record({
+      stage: "enrichment",
+      outcome: "succeeded",
+      startedAt: enrichmentStartedAt,
+      requestedCount: freshCandidates.length,
+      deliveredCount: enriched.candidates.filter(
+        ({ qualityReport }) => qualityReport.decision !== "reject",
+      ).length,
+      rejectedCount: enriched.candidates.filter(
+        ({ qualityReport }) => qualityReport.decision === "reject",
+      ).length,
+      attemptCount: attemptNumber,
+    });
     strategies = {
       candidateStrategy: enriched.candidateStrategy,
       rankingStrategy: enriched.rankingStrategy,
@@ -93,6 +152,16 @@ export async function generateWithDeficitReplacement(
     candidates: qualityReports,
   });
   const deficitCount = request.requestedCount - candidates.length;
+
+  record({
+    stage: "replacement",
+    outcome: deficitCount === 0 ? "exact" : "partial",
+    startedAt: totalStartedAt,
+    requestedCount: request.requestedCount,
+    deliveredCount: candidates.length,
+    rejectedCount: rejectedCandidates.length,
+    attemptCount: attempts,
+  });
 
   return {
     title,
