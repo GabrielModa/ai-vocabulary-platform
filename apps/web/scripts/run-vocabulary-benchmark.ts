@@ -7,6 +7,7 @@ import {
   loadLocalLexicalLookup,
   loadLocalPronunciationLookup,
 } from "../app/api/vocabulary/generate/lexical-enrichment.js";
+import { suggestCandidatesWithTrustedFirst } from "../app/api/vocabulary/generate/candidate-suggestion.js";
 import { generateWithDeficitReplacement } from "../app/api/vocabulary/generate/replacement-generation.js";
 import {
   summarizeVocabularyBenchmark,
@@ -43,7 +44,13 @@ async function main(): Promise<void> {
     const metrics: VocabularyGenerationMetricFields[] = [];
     await generateWithDeficitReplacement(request, {
       recordMetric: (metric) => metrics.push(metric),
-      suggest: (generationRequest, options) => generator.generate(generationRequest, options),
+      suggest: (generationRequest, options) =>
+        suggestCandidatesWithTrustedFirst(
+          generationRequest,
+          options,
+          (fallbackRequest, fallbackOptions) =>
+            generator.generate(fallbackRequest, fallbackOptions),
+        ),
       enrich: (generated) =>
         enrichVocabularySet(generated, ...lookups, {
           topic: request.topic,
