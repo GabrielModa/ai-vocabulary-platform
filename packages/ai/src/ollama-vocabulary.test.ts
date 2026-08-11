@@ -39,6 +39,7 @@ describe("Ollama vocabulary provider", () => {
       properties: { candidates: { minItems: 2, maxItems: 2 } },
     });
     expect(requestBody.options).toMatchObject({ num_predict: 160 });
+    expect(requestBody.keep_alive).toBe("30m");
     expect(typeof body === "string" ? body : "").not.toContain("contexts");
   });
 
