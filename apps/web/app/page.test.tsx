@@ -3,6 +3,10 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import VocabularyPage from "./page.js";
+import {
+  readInterruptedStudySession,
+  saveInterruptedStudySession,
+} from "./interrupted-study-session";
 
 const generatedSet = {
   title: "Your football word set",
@@ -274,6 +278,50 @@ describe("VocabularyPage", () => {
       expect.stringContaining("/api/vocabulary/image"),
       expect.anything(),
     );
+  });
+  it("offers explicit continuation of a validated interrupted training session", async () => {
+    saveInterruptedStudySession(window.localStorage, {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      title: generatedSet.title,
+      level: "B1",
+      candidates: generatedSet.candidates,
+      selectedTerms: generatedSet.candidates.map(({ term }) => term),
+      questionIndex: 1,
+      chosenTerm: "pitch",
+      feedback: "incorrect",
+      attempts: [{ term: "pass", chosenTerm: "pitch", correct: false }],
+    });
+
+    render(<VocabularyPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Continue session" }));
+
+    expect(screen.getByText("Question 2 of 4")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /pitch/u })).toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent("Not quite");
+    expect(screen.getByText("Restored from this device.")).toBeInTheDocument();
+  });
+
+  it("discards an interrupted session without restoring it", async () => {
+    saveInterruptedStudySession(window.localStorage, {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      title: generatedSet.title,
+      level: "B1",
+      candidates: generatedSet.candidates,
+      selectedTerms: generatedSet.candidates.map(({ term }) => term),
+      questionIndex: 0,
+      attempts: [],
+    });
+
+    render(<VocabularyPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Discard saved session" }));
+
+    expect(screen.queryByRole("button", { name: "Continue session" })).not.toBeInTheDocument();
+    expect(readInterruptedStudySession(window.localStorage)).toBeUndefined();
+    expect(
+      screen.getByRole("heading", { name: "What do you want to learn from?" }),
+    ).toBeInTheDocument();
   });
   it("requires explicit confirmation for an ambiguous selected meaning", async () => {
     vi.stubGlobal(

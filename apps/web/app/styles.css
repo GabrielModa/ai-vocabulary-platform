@@ -137,8 +137,28 @@ h2 {
   letter-spacing: -0.03em;
 }
 .mode-grid,
+.resume-session,
 .capture-form {
   grid-column: 2;
+}
+.resume-session {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #c6ff48;
+  border-radius: 1rem;
+  background: rgb(198 255 72 / 7%);
+}
+.resume-session h3,
+.resume-session p {
+  margin: 0;
+}
+.resume-session > div {
+  display: grid;
+  gap: 0.6rem;
+}
+.resume-session > div:last-child {
+  grid-template-columns: repeat(2, minmax(0, max-content));
 }
 .mode-grid {
   display: grid;
@@ -706,8 +726,10 @@ select:focus-visible {
   }
   h2,
   .mode-grid,
+  .resume-session,
   .capture-form,
   .review-heading,
+  .review-mode,
   .candidate-list,
   .review-actions,
   .privacy-note {
@@ -721,6 +743,9 @@ select:focus-visible {
   }
   .review-heading {
     flex-direction: column;
+  }
+  .resume-session > div:last-child {
+    grid-template-columns: 1fr;
   }
 }
 @media (prefers-reduced-motion: reduce) {

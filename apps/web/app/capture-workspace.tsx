@@ -18,6 +18,13 @@ import {
   writeSensePreference,
 } from "./sense-preferences";
 import { readVisualCluesEnabled, writeVisualCluesEnabled } from "./visual-clue-preferences";
+import {
+  clearInterruptedStudySession,
+  readInterruptedStudySession,
+  saveInterruptedStudySession,
+  type InterruptedStudySession,
+  type ResumableCandidate,
+} from "./interrupted-study-session";
 
 type Mode = "words" | "topic" | "photo";
 type ReviewMode = "test" | "study";
@@ -68,6 +75,29 @@ interface ImageJob {
 
 const IMAGE_POLL_INTERVAL_MS = 2_500;
 const IMAGE_JOB_TIMEOUT_MS = 180_000;
+
+function resumableLevel(level: string): InterruptedStudySession["level"] | undefined {
+  return level === "A2" || level === "B1" || level === "B2" || level === "C1" || level === "C2"
+    ? level
+    : undefined;
+}
+
+function resumableCandidate(candidate: Candidate): ResumableCandidate {
+  return {
+    term: candidate.term,
+    meaning: candidate.meaning,
+    type: candidate.type,
+    example: candidate.example,
+    challenge: candidate.challenge,
+    ...(candidate.candidateId ? { candidateId: candidate.candidateId } : {}),
+    ...(candidate.senseId ? { senseId: candidate.senseId } : {}),
+    ...(candidate.contexts ? { contexts: candidate.contexts } : {}),
+    ...(candidate.exerciseKind ? { exerciseKind: candidate.exerciseKind } : {}),
+    ...(candidate.exercisePipelineOutcome?.outcome === "publish"
+      ? { exercisePipelineOutcome: candidate.exercisePipelineOutcome }
+      : {}),
+  };
+}
 
 async function enqueueImage(candidate: Candidate, level: string): Promise<ImageJob | undefined> {
   const context = `${candidate.meaning}. Example scene: ${candidate.example}`;
@@ -235,9 +265,43 @@ export function CaptureWorkspace() {
   const [meaningCorrectionTerm, setMeaningCorrectionTerm] = useState<string>();
   const [meaningCorrectionStatus, setMeaningCorrectionStatus] = useState<string>();
   const [visualCluesEnabled, setVisualCluesEnabled] = useState(true);
+  const [restorableSession, setRestorableSession] = useState<InterruptedStudySession>();
+  const [restoredSession, setRestoredSession] = useState(false);
   useEffect(() => {
     setVisualCluesEnabled(readVisualCluesEnabled(window.localStorage));
+    setRestorableSession(readInterruptedStudySession(window.localStorage));
   }, []);
+  useEffect(() => {
+    if (sessionComplete) {
+      clearInterruptedStudySession(window.localStorage);
+      return;
+    }
+    const safeLevel = resumableLevel(level);
+    if (!training || !safeLevel || candidates.length === 0 || selected.size === 0) return;
+    saveInterruptedStudySession(window.localStorage, {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      title,
+      level: safeLevel,
+      candidates: candidates.map(resumableCandidate),
+      selectedTerms: [...selected],
+      questionIndex,
+      attempts,
+      ...(chosenTerm ? { chosenTerm } : {}),
+      ...(feedback ? { feedback } : {}),
+    });
+  }, [
+    attempts,
+    candidates,
+    chosenTerm,
+    feedback,
+    level,
+    questionIndex,
+    selected,
+    sessionComplete,
+    title,
+    training,
+  ]);
   function updateVisualClues(enabled: boolean) {
     setVisualCluesEnabled(enabled);
     writeVisualCluesEnabled(window.localStorage, enabled);
@@ -282,6 +346,9 @@ export function CaptureWorkspace() {
       setLevel(requestedLevel);
       setReviewing(true);
       setReviewMode("test");
+      clearInterruptedStudySession(window.localStorage);
+      setRestorableSession(undefined);
+      setRestoredSession(false);
       if (visualCluesEnabled) {
         for (const candidate of preferredCandidates
           .filter((item) => !requiresSenseConfirmation(item))
@@ -465,6 +532,7 @@ export function CaptureWorkspace() {
   }
 
   function resetSession() {
+    clearInterruptedStudySession(window.localStorage);
     setReviewing(false);
     setTraining(false);
     setQuestionIndex(0);
@@ -481,6 +549,33 @@ export function CaptureWorkspace() {
     setStudySessionId(undefined);
     setMeaningCorrectionTerm(undefined);
     setMeaningCorrectionStatus(undefined);
+    setRestorableSession(undefined);
+    setRestoredSession(false);
+  }
+
+  function continueInterruptedSession(session: InterruptedStudySession) {
+    const restoredAttempts: readonly Attempt[] = session.attempts;
+    setTitle(session.title);
+    setLevel(session.level);
+    setCandidates(session.candidates);
+    setSelected(new Set(session.selectedTerms));
+    setQuestionIndex(session.questionIndex);
+    setChosenTerm(session.chosenTerm);
+    setFeedback(session.feedback);
+    setAttempts(restoredAttempts);
+    setScore(restoredAttempts.filter(({ correct, voided }) => correct && !voided).length);
+    setSessionComplete(false);
+    setReviewing(true);
+    setTraining(true);
+    setReviewMode("test");
+    setRestorableSession(undefined);
+    setRestoredSession(true);
+    setError(undefined);
+  }
+
+  function discardInterruptedSession() {
+    clearInterruptedStudySession(window.localStorage);
+    setRestorableSession(undefined);
   }
 
   function confirmSense(candidate: Candidate) {
@@ -528,6 +623,37 @@ export function CaptureWorkspace() {
               <p>Choose your source</p>
             </div>
             <h2 id="mode-title">What do you want to learn from?</h2>
+            {restorableSession && (
+              <aside className="resume-session" aria-labelledby="resume-session-title">
+                <div>
+                  <p className="eyebrow">Saved on this device</p>
+                  <h3 id="resume-session-title">Continue {restorableSession.title}?</h3>
+                  <p>
+                    Question {restorableSession.questionIndex + 1} of{" "}
+                    {restorableSession.selectedTerms.length}. Saved progress expires after seven
+                    days.
+                  </p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="primary-action"
+                    onClick={() => {
+                      continueInterruptedSession(restorableSession);
+                    }}
+                  >
+                    Continue session
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-action"
+                    onClick={discardInterruptedSession}
+                  >
+                    Discard saved session
+                  </button>
+                </div>
+              </aside>
+            )}
             <div className="mode-grid" role="group" aria-label="Vocabulary source">
               {(Object.keys(modeCopy) as Mode[]).map((value) => (
                 <button
@@ -864,6 +990,7 @@ export function CaptureWorkspace() {
             {!sessionComplete && currentCandidate ? (
               <div className="training-panel">
                 {studySessionId && <p className="privacy-note">Your study session is ready.</p>}
+                {restoredSession && <p className="privacy-note">Restored from this device.</p>}
                 <p className="progress-label">
                   Question {questionIndex + 1} of {trainingCandidates.length}
                 </p>
