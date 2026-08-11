@@ -23,6 +23,12 @@ const allowedFields = new Set([
   "outcome",
   "route",
   "statusCode",
+  "stage",
+  "requestedCount",
+  "deliveredCount",
+  "rejectedCount",
+  "attemptCount",
+  "cacheHit",
 ]);
 
 export function redactFields(

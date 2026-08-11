@@ -37,6 +37,40 @@ describe("observability foundation", () => {
     ).resolves.toBe(false);
   });
 
+  it("retains bounded vocabulary metrics but drops learner content", async () => {
+    const exporter = new CapturingTelemetryExporter();
+    const telemetry = new SafeTelemetry(exporter);
+
+    await telemetry.emit(
+      "metric",
+      "vocabulary.generation",
+      createRequestContext("request_12345678"),
+      {
+        stage: "enrichment",
+        outcome: "partial",
+        durationMs: 18,
+        requestedCount: 10,
+        deliveredCount: 8,
+        rejectedCount: 2,
+        attemptCount: 2,
+        cacheHit: true,
+        topic: "classified learner topic",
+        generatedWord: "classified generated word",
+      },
+    );
+
+    expect(exporter.signals[0]?.fields).toEqual({
+      stage: "enrichment",
+      outcome: "partial",
+      durationMs: 18,
+      requestedCount: 10,
+      deliveredCount: 8,
+      rejectedCount: 2,
+      attemptCount: 2,
+      cacheHit: true,
+    });
+  });
+
   it("keeps provider adapters disabled by default", () => {
     const providers = createProviderAdapters({
       enabled: false,

@@ -31,3 +31,10 @@ contained and must not fail an HTTP request or job.
 If a classified value appears in telemetry, disable the provider adapter, preserve only access and
 configuration audit evidence, rotate affected credentials when applicable, and remove the unsafe
 field at the allowlist boundary before re-enabling export.
+
+## Vocabulary generation
+
+Generation telemetry records fixed stage/outcome values, integer duration, requested/delivered/
+rejected counts, attempt count, and cache state. Topic text, candidate terms, definitions, examples,
+learner identifiers, and raw provider data are forbidden. Unknown stages collapse to `unknown` and
+unknown outcomes to `failed` so externally supplied labels cannot create unbounded cardinality.
