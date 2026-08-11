@@ -3,13 +3,9 @@ param([switch]$NoBrowser)
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$workerRoot = Join-Path $root "services\image-worker"
-$python = Join-Path $workerRoot ".venv\Scripts\python.exe"
-$modelIndex = Join-Path $workerRoot "models\lcm-dreamshaper-int8\model_index.json"
 $workerUrl = "http://127.0.0.1:8765"
 $siteUrl = "http://localhost:3000"
-$worker = $null
-$web = $null
+$runtime = $null
 $exitCode = 0
 
 function Assert-Command([string]$Name) {
@@ -59,56 +55,42 @@ try {
   Assert-Command "node"
   Assert-Command "corepack.cmd"
   Assert-Command "ollama"
-  if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw "Venv do worker nao encontrada: $python" }
   $nodeMajor = [int]((& node --version).TrimStart("v").Split(".")[0])
   $pnpmVersion = & corepack.cmd pnpm --version
   $pnpmMajor = [int]($pnpmVersion.Split(".")[0])
-  $pythonMinor = & $python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
   if ($nodeMajor -lt 22) { throw "Node.js 22 ou superior e obrigatorio; encontrado: $(& node --version)" }
   if ($pnpmMajor -lt 11) { throw "pnpm 11 ou superior e obrigatorio; encontrado: $pnpmVersion" }
-  if ([version]$pythonMinor -lt [version]"3.12") { throw "Python 3.12 ou superior e obrigatorio; encontrado: $pythonMinor" }
-  if (-not (Test-Path -LiteralPath $modelIndex -PathType Leaf)) { throw "Modelo OpenVINO nao encontrado: $modelIndex" }
   if (-not (Test-Path -LiteralPath (Join-Path $root "node_modules") -PathType Container)) { throw "Dependencias Node ausentes. Execute pnpm install." }
   if (-not (Test-Http "http://127.0.0.1:11434/api/tags" 3)) { throw "Ollama nao esta respondendo em 127.0.0.1:11434." }
-  if (Test-Port 8765) {
-    if (-not (Test-Http "$workerUrl/health" 5)) {
-      throw "A porta 8765 esta ocupada por um processo que nao e um worker saudavel."
-    }
-    Write-Host "Reutilizando worker existente."
-  } else {
-    Write-Host "Iniciando worker de imagens (a compilacao inicial pode levar cerca de 90 segundos)..."
-    $worker = Start-LocalProcess $python "-m image_worker.server" $workerRoot
-    if (-not (Wait-Http "$workerUrl/health" 150)) { throw "Worker nao respondeu dentro do prazo." }
-  }
-  $health = Invoke-RestMethod -Uri "$workerUrl/health" -TimeoutSec 5
-  Write-Host "Worker: $($health.status); dispositivo: $($health.device); modelo pronto: $($health.modelReady)"
-
   if (Test-Port 3000) {
-    if (-not (Test-Http $siteUrl 5)) {
-      throw "A porta 3000 esta ocupada por um processo que nao e o site Lexi."
-    }
-    Write-Host "Reutilizando site existente."
+    throw "A porta 3000 ja esta ocupada. Encerre a execucao anterior antes de usar o launcher."
+  }
+
+  Write-Host "Iniciando runtime local completo (banco, migracoes, Ollama, imagens e web)..."
+  $corepack = (Get-Command "corepack.cmd").Source
+  $runtime = Start-LocalProcess $env:ComSpec "/d /s /c `"`"$corepack`" pnpm dev:local`"" $root
+  if (-not (Wait-Http $siteUrl 180)) {
+    if ($runtime.HasExited) { throw "Runtime local encerrou com codigo $($runtime.ExitCode)." }
+    throw "Site nao respondeu dentro do prazo. Consulte os logs exibidos pelo runtime."
+  }
+
+  if (Test-Http "$workerUrl/health" 5) {
+    $health = Invoke-RestMethod -Uri "$workerUrl/health" -TimeoutSec 5
+    Write-Host "Worker: $($health.status); dispositivo: $($health.device); modelo pronto: $($health.modelReady)"
   } else {
-    Write-Host "Iniciando site..."
-    $corepack = (Get-Command "corepack.cmd").Source
-    $web = Start-LocalProcess $env:ComSpec "/d /s /c `"`"$corepack`" pnpm --filter @vocabulary/web dev`"" $root
-    if (-not (Wait-Http $siteUrl 90)) { throw "Site nao respondeu dentro do prazo." }
+    Write-Warning "Worker de imagens indisponivel. O treino continuara sem pistas visuais."
   }
   if (-not $NoBrowser) { Start-Process $siteUrl }
 
   Write-Host "Lexi pronta em $siteUrl. Pressione Ctrl+C para encerrar."
-  while (($null -eq $worker -or -not $worker.HasExited) -and ($null -eq $web -or -not $web.HasExited)) {
+  while (-not $runtime.HasExited) {
     Start-Sleep -Seconds 1
   }
-  $workerState = if ($null -eq $worker) { "externo" } elseif ($worker.HasExited) { "encerrado ($($worker.ExitCode))" } else { "ativo" }
-  $webState = if ($null -eq $web) { "externo" } elseif ($web.HasExited) { "encerrado ($($web.ExitCode))" } else { "ativo" }
-  throw "Um processo local encerrou inesperadamente. Worker: $workerState; Web: $webState"
+  throw "O runtime local encerrou inesperadamente com codigo $($runtime.ExitCode)."
 } catch {
   Write-Error $_
   $exitCode = 1
 } finally {
-  foreach ($process in @($worker, $web)) {
-    if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id }
-  }
+  if ($runtime -and -not $runtime.HasExited) { Stop-Process -Id $runtime.Id }
 }
 exit $exitCode
