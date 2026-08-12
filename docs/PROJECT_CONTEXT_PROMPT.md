@@ -127,6 +127,8 @@ domínio → planejamento adaptativo e repetição espaçada → relatório, his
 - Task 136 foi concluída e commitada.
 - Task 137 está implementada localmente: quality screen determinístico para exemplos gerados.
 - Task 138 está implementada localmente: diagnóstico de prontidão do conjunto para aprendizagem.
+- Task 139 torna falhas finais de publicação acionáveis e identifica palavras omitidas.
+- O release gate do MVP sem imagens passou em 12 de agosto de 2026.
 - O MVP sem imagens está funcionalmente avançado; imagens não devem bloquear testes do fluxo
   principal.
 - A estimativa útil é aproximadamente 90% do MVP sem imagens e 65–70% da visão completa. Percentuais

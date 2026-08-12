@@ -361,9 +361,41 @@ describe("VocabularyPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /start training/u }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Only 3 words produced verified exercises. Select or generate at least 4.",
+      "Only 3 words produced verified exercises. Could not publish: goalkeeper. Generate replacements or select at least 4 publishable words.",
     );
     expect(screen.queryByText("Question 1 of 4")).not.toBeInTheDocument();
+  });
+  it("explains when final validation publishes no exercises", async () => {
+    const baseFetch = fetchForGeneration(generatedSet);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        if (url.includes("/api/vocabulary/drafts/") && url.endsWith("/resolve")) {
+          return Promise.resolve(
+            responseJson(
+              {
+                code: "no-published-exercises",
+                message: "No reviewed candidate produced a published exercise",
+              },
+              400,
+            ),
+          );
+        }
+        return baseFetch(input);
+      }),
+    );
+    render(<VocabularyPage />);
+    const form = screen.getByRole("button", { name: /Create my word set/u }).closest("form");
+    if (!form) throw new Error("missing capture form");
+    fireEvent.submit(form);
+    await screen.findByRole("heading", { level: 2, name: "Your football word set" });
+    fireEvent.click(screen.getByRole("button", { name: /start training/u }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "None of the selected words passed final exercise validation. Go back and generate replacements for this set.",
+    );
   });
   it("runs the complete training flow without requesting visual clues", async () => {
     render(<VocabularyPage />);

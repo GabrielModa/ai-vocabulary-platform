@@ -473,12 +473,24 @@ export function CaptureWorkspace() {
       );
 
       if (!resolution.ok) {
+        const failure = (await resolution.json().catch(() => undefined)) as
+          { readonly code?: string } | undefined;
         if (resolution.status === 401) {
           setError("Sign in again before resolving this generated set.");
         } else if (resolution.status === 404) {
           setError("This generated set expired. Generate a new set to continue.");
+        } else if (failure?.code === "invalid-selection") {
+          setError(
+            "One or more selected meanings changed. Review the selected words and try again.",
+          );
+        } else if (failure?.code === "no-published-exercises") {
+          setError(
+            "None of the selected words passed final exercise validation. Go back and generate replacements for this set.",
+          );
         } else {
-          setError("The reviewed words could not produce verified exercises.");
+          setError(
+            "Final exercise validation could not finish. Try again without regenerating the set.",
+          );
         }
         return;
       }
@@ -486,6 +498,7 @@ export function CaptureWorkspace() {
       const resolved = (await resolution.json()) as {
         readonly draftId: string;
         readonly publishedCandidateIds: readonly string[];
+        readonly omittedCandidateIds: readonly string[];
       };
       const published = new Set(resolved.publishedCandidateIds);
       const publishedCandidateIds = selectedCandidateIds.filter((candidateId) =>
@@ -493,13 +506,21 @@ export function CaptureWorkspace() {
       );
 
       if (publishedCandidateIds.length === 0) {
-        setError("The reviewed words could not produce verified exercises.");
+        setError(
+          "None of the selected words passed final exercise validation. Go back and generate replacements for this set.",
+        );
         return;
       }
 
       if (publishedCandidateIds.length < 4) {
+        const omitted = new Set(resolved.omittedCandidateIds);
+        const omittedTerms = candidates
+          .filter((candidate) => omitted.has(candidate.candidateId ?? ""))
+          .map((candidate) => candidate.term);
+        const omittedCopy =
+          omittedTerms.length > 0 ? ` Could not publish: ${omittedTerms.join(", ")}.` : "";
         setError(
-          `Only ${String(publishedCandidateIds.length)} words produced verified exercises. Select or generate at least 4.`,
+          `Only ${String(publishedCandidateIds.length)} words produced verified exercises.${omittedCopy} Generate replacements or select at least 4 publishable words.`,
         );
         return;
       }
@@ -1037,7 +1058,7 @@ export function CaptureWorkspace() {
                 <p>
                   Learning readiness: {learningReadiness.status}.{" "}
                   {learningReadiness.sessionReadyCount} of {learningReadiness.requestedCount} words
-                  can enter a session now.
+                  are eligible for final exercise publication.
                 </p>
                 <small>
                   Quality score {learningReadiness.score}/100 ·{" "}
