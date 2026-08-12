@@ -31,15 +31,47 @@ export interface SelectDefinitionChoiceDistractorsInput {
   readonly count?: number;
 }
 
+type ConcreteSemanticRole = "person" | "group" | "object" | "event" | "place";
+
 function normalize(value: string): string {
   return value.normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/gu, " ").trim();
 }
 
-function boundedPercentile(value: number | undefined): number | undefined {
-  if (value === undefined || !Number.isFinite(value)) {
-    return undefined;
-  }
+function inferConcreteSemanticRole(definition: string): ConcreteSemanticRole | undefined {
+  const value = normalize(definition);
 
+  if (
+    /\b(person|someone|somebody|individual|official who|one who|somebody who|someone who)\b/u.test(
+      value,
+    )
+  ) {
+    return "person";
+  }
+  if (
+    /\b(group|team|unit|organization|organisation|crew|committee|collection of people)\b/u.test(
+      value,
+    )
+  ) {
+    return "group";
+  }
+  if (/\b(contest|competition|event|ceremony|occasion|game in which)\b/u.test(value)) {
+    return "event";
+  }
+  if (
+    /\b(object|device|tool|instrument|piece of|container|vehicle|machine|projectile|plaything)\b/u.test(
+      value,
+    )
+  ) {
+    return "object";
+  }
+  if (/\b(place|location|area|room|building|site|space where)\b/u.test(value)) {
+    return "place";
+  }
+  return undefined;
+}
+
+function boundedPercentile(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) return undefined;
   return Math.min(1, Math.max(0, value));
 }
 
@@ -49,43 +81,35 @@ function frequencySimilarityScore(
 ): number {
   const normalizedTarget = boundedPercentile(target);
   const normalizedCandidate = boundedPercentile(candidate);
-
-  if (normalizedTarget === undefined || normalizedCandidate === undefined) {
-    return 0;
-  }
-
+  if (normalizedTarget === undefined || normalizedCandidate === undefined) return 0;
   return Math.round((1 - Math.abs(normalizedTarget - normalizedCandidate)) * 1_000);
 }
 
 function lengthSimilarityScore(target: string, candidate: string): number {
   const distance = Math.abs(normalize(target).length - normalize(candidate).length);
-
   return Math.max(0, 100 - distance);
 }
 
 function compatibilityScore(
   target: DefinitionChoiceDistractorEvidence,
   candidate: DefinitionChoiceDistractorEvidence,
-): {
-  readonly score: number;
-  readonly reasons: readonly string[];
-} {
-  const samePartOfSpeech = candidate.knowledge.partOfSpeech === target.knowledge.partOfSpeech;
-  const reasons: string[] = [
-    samePartOfSpeech ? "same-part-of-speech" : "cross-part-of-speech-fallback",
-  ];
-  let score = samePartOfSpeech ? 1_000 : 0;
-
+) {
+  const reasons: string[] = ["same-part-of-speech"];
+  let score = 1_000;
+  const targetRole = inferConcreteSemanticRole(target.knowledge.selectedSense.definition);
+  const candidateRole = inferConcreteSemanticRole(candidate.knowledge.selectedSense.definition);
+  if (targetRole !== undefined && candidateRole === targetRole) {
+    score += 500;
+    reasons.push("same-semantic-role");
+  }
   if (candidate.knowledge.context.learnerLevel === target.knowledge.context.learnerLevel) {
     score += 300;
     reasons.push("same-learner-level");
   }
-
   if (normalize(candidate.knowledge.context.topic) === normalize(target.knowledge.context.topic)) {
     score += 200;
     reasons.push("same-topic");
   }
-
   const frequencyScore = frequencySimilarityScore(
     target.frequencyPercentile,
     candidate.frequencyPercentile,
@@ -94,14 +118,9 @@ function compatibilityScore(
     score += frequencyScore;
     reasons.push("similar-frequency");
   }
-
   score += lengthSimilarityScore(target.knowledge.displayForm, candidate.knowledge.displayForm);
   reasons.push("similar-display-length");
-
-  return Object.freeze({
-    score,
-    reasons: Object.freeze(reasons),
-  });
+  return Object.freeze({ score, reasons: Object.freeze(reasons) });
 }
 
 function failure(
@@ -109,12 +128,7 @@ function failure(
   message: string,
   compatibleKnowledgeCount: number,
 ): SelectDefinitionChoiceDistractorsResult {
-  return Object.freeze({
-    ok: false,
-    code,
-    message,
-    compatibleKnowledgeCount,
-  });
+  return Object.freeze({ ok: false, code, message, compatibleKnowledgeCount });
 }
 
 export function selectDefinitionChoiceDistractors(
@@ -132,6 +146,8 @@ export function selectDefinitionChoiceDistractors(
   const targetLemma = normalize(input.target.knowledge.normalizedLemma);
   const targetDisplayForm = normalize(input.target.knowledge.displayForm);
   const targetDefinition = normalize(input.target.knowledge.selectedSense.definition);
+  const targetPartOfSpeech = input.target.knowledge.partOfSpeech;
+  const targetRole = inferConcreteSemanticRole(input.target.knowledge.selectedSense.definition);
 
   const seenKnowledgeIds = new Set<string>([normalize(input.target.knowledge.knowledgeId)]);
   const seenLemmas = new Set<string>([targetLemma]);
@@ -146,6 +162,7 @@ export function selectDefinitionChoiceDistractors(
     const displayForm = normalize(knowledge.displayForm);
     const senseId = normalize(knowledge.selectedSense.senseId);
     const definition = normalize(knowledge.selectedSense.definition);
+    const candidateRole = inferConcreteSemanticRole(knowledge.selectedSense.definition);
 
     if (
       !knowledgeId ||
@@ -153,39 +170,32 @@ export function selectDefinitionChoiceDistractors(
       !displayForm ||
       !senseId ||
       !definition ||
+      knowledge.partOfSpeech !== targetPartOfSpeech ||
+      (targetRole !== undefined && candidateRole !== targetRole) ||
       seenKnowledgeIds.has(knowledgeId) ||
       seenLemmas.has(lemma) ||
       seenDisplayForms.has(displayForm) ||
       seenSenseIds.has(senseId) ||
       seenDefinitions.has(definition)
-    ) {
+    )
       return [];
-    }
 
     seenKnowledgeIds.add(knowledgeId);
     seenLemmas.add(lemma);
     seenDisplayForms.add(displayForm);
     seenSenseIds.add(senseId);
     seenDefinitions.add(definition);
-
     const compatibility = compatibilityScore(input.target, candidate);
-
     return [
-      Object.freeze({
-        knowledge,
-        score: compatibility.score,
-        reasons: compatibility.reasons,
-      }),
+      Object.freeze({ knowledge, score: compatibility.score, reasons: compatibility.reasons }),
     ];
   });
 
-  const sorted = [...compatible].sort((left, right) => {
-    if (left.score !== right.score) {
-      return right.score - left.score;
-    }
-
-    return left.knowledge.knowledgeId.localeCompare(right.knowledge.knowledgeId, "en-US");
-  });
+  const sorted = [...compatible].sort((left, right) =>
+    left.score !== right.score
+      ? right.score - left.score
+      : left.knowledge.knowledgeId.localeCompare(right.knowledge.knowledgeId, "en-US"),
+  );
 
   if (sorted.length < requestedCount) {
     return failure(

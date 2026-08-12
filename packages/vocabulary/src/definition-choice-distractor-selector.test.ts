@@ -168,7 +168,7 @@ describe("definition choice distractor selector", () => {
     ]);
   });
 
-  it("fills a same-POS deficit with lower-ranked verified cross-POS knowledge", () => {
+  it("does not fill a same-POS deficit with cross-POS distractors", () => {
     const referee = knowledge("referee", "An official who enforces the rules.");
     const coach = knowledge("coach", "A person who trains a team.");
     const penalty = knowledge("penalty", "A punishment for breaking a rule.");
@@ -185,16 +185,12 @@ describe("definition choice distractor selector", () => {
       ],
     });
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.distractors.map(({ knowledge: item }) => item.displayForm)).toEqual([
-      "coach",
-      "penalty",
-      "tackle",
-    ]);
-    expect(result.distractors[0]?.reasons).toContain("same-part-of-speech");
-    expect(result.distractors[2]?.reasons).toContain("cross-part-of-speech-fallback");
-    expect(result.distractors[2]?.score).toBeLessThan(result.distractors[1]?.score ?? 0);
+    expect(result).toEqual({
+      ok: false,
+      code: "insufficient-compatible-knowledge",
+      message: "Expected 3 compatible distractors",
+      compatibleKnowledgeCount: 1,
+    });
   });
 
   it("reports the number of compatible items when the pool is insufficient", () => {
@@ -214,7 +210,7 @@ describe("definition choice distractor selector", () => {
       ok: false,
       code: "insufficient-compatible-knowledge",
       message: "Expected 3 compatible distractors",
-      compatibleKnowledgeCount: 2,
+      compatibleKnowledgeCount: 1,
     });
   });
 
@@ -231,5 +227,81 @@ describe("definition choice distractor selector", () => {
       message: "Distractor count must be a positive safe integer",
       compatibleKnowledgeCount: 0,
     });
+  });
+
+  it("rejects same-topic nouns that reveal the answer through semantic category", () => {
+    const ball = knowledge("ball", "A round object that is hit or thrown or kicked in games.", {
+      topic: "football",
+      learnerLevel: "A2",
+    });
+    const match = knowledge(
+      "match",
+      "A formal contest in which two or more persons or teams compete.",
+      {
+        topic: "football",
+        learnerLevel: "A2",
+      },
+    );
+    const player = knowledge("player", "A person who participates in or is skilled at some game.", {
+      topic: "football",
+      learnerLevel: "A2",
+    });
+    const team = knowledge("team", "A cooperative unit especially in sports.", {
+      topic: "football",
+      learnerLevel: "A2",
+    });
+
+    const result = selectDefinitionChoiceDistractors({
+      target: { knowledge: ball },
+      pool: [{ knowledge: match }, { knowledge: player }, { knowledge: team }],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "insufficient-compatible-knowledge",
+      message: "Expected 3 compatible distractors",
+      compatibleKnowledgeCount: 0,
+    });
+  });
+
+  it("keeps concrete distractors in the same semantic role", () => {
+    const referee = knowledge("referee", "A person who enforces the rules.", {
+      topic: "football",
+      learnerLevel: "A2",
+    });
+    const coach = knowledge("coach", "A person who trains a team.", {
+      topic: "football",
+      learnerLevel: "A2",
+    });
+    const fan = knowledge("fan", "A person who strongly supports a team.", {
+      topic: "football",
+      learnerLevel: "A2",
+    });
+    const player = knowledge("player", "A person who takes part in a game.", {
+      topic: "football",
+      learnerLevel: "A2",
+    });
+    const ball = knowledge("ball", "A round object used in games.", {
+      topic: "football",
+      learnerLevel: "A2",
+    });
+
+    const result = selectDefinitionChoiceDistractors({
+      target: { knowledge: referee },
+      pool: [{ knowledge: ball }, { knowledge: coach }, { knowledge: fan }, { knowledge: player }],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.distractors.map(({ knowledge: item }) => item.displayForm).sort()).toEqual([
+      "coach",
+      "fan",
+      "player",
+    ]);
+
+    expect(result.distractors.every(({ reasons }) => reasons.includes("same-semantic-role"))).toBe(
+      true,
+    );
   });
 });
