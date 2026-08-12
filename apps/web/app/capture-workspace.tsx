@@ -56,11 +56,22 @@ interface GenerationEnvelope {
   readonly generation: {
     readonly title: string;
     readonly candidates: readonly Candidate[];
+    readonly learningReadiness?: LearningReadiness;
   };
   readonly draft: {
     readonly draftId: string;
     readonly expiresAt: string;
   };
+}
+
+interface LearningReadiness {
+  readonly status: "ready" | "partial" | "blocked";
+  readonly score: number;
+  readonly requestedCount: number;
+  readonly sessionReadyCount: number;
+  readonly contextualExampleCount: number;
+  readonly provisionalExampleCount: number;
+  readonly recommendations: readonly string[];
 }
 
 interface CreatedStudySession {
@@ -287,6 +298,7 @@ export function CaptureWorkspace() {
     readonly requested: number;
     readonly delivered: number;
   }>();
+  const [learningReadiness, setLearningReadiness] = useState<LearningReadiness>();
   const [level, setLevel] = useState("B1");
   const [draftId, setDraftId] = useState<string>();
   const [draftExpiresAt, setDraftExpiresAt] = useState<string>();
@@ -384,6 +396,7 @@ export function CaptureWorkspace() {
         applySensePreference(candidate, preferences),
       );
       setCandidates(preferredCandidates);
+      setLearningReadiness(result.generation.learningReadiness);
       setGenerationShortfall(
         preferredCandidates.length < requestedCount
           ? { requested: requestedCount, delivered: preferredCandidates.length }
@@ -1017,6 +1030,23 @@ export function CaptureWorkspace() {
                   are ready.
                 </p>
                 <small>Try a broader topic or request a smaller set.</small>
+              </div>
+            )}
+            {learningReadiness && (
+              <div className="adaptive-review-callout" aria-live="polite">
+                <p>
+                  Learning readiness: {learningReadiness.status}.{" "}
+                  {learningReadiness.sessionReadyCount} of {learningReadiness.requestedCount} words
+                  can enter a session now.
+                </p>
+                <small>
+                  Quality score {learningReadiness.score}/100 ·{" "}
+                  {learningReadiness.contextualExampleCount} contextual examples
+                  {learningReadiness.provisionalExampleCount > 0
+                    ? ` · ${String(learningReadiness.provisionalExampleCount)} provisional`
+                    : ""}
+                  . {learningReadiness.recommendations[0] ?? "The set is ready for active recall."}
+                </small>
               </div>
             )}
             <ul className="candidate-list">

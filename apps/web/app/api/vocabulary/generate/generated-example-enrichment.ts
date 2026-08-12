@@ -1,5 +1,6 @@
 import type { LocalExampleRequest, LocalExampleSuggestion } from "@vocabulary/ai";
 import type { EnrichedCandidate, EnrichedVocabularySet } from "./lexical-enrichment";
+import { evaluateLearningSetReadiness } from "./learning-set-readiness";
 
 const PENDING_EXAMPLE = "A verified example is not available yet.";
 
@@ -26,7 +27,7 @@ export async function enrichMissingStudyExamples(
   options: GeneratedExampleEnrichmentOptions,
 ): Promise<EnrichedVocabularySet> {
   const missing = vocabularySet.candidates.filter(canGenerate).slice(0, 20);
-  if (missing.length === 0) return vocabularySet;
+  if (missing.length === 0) return withLearningReadiness(vocabularySet);
 
   let suggestions: readonly LocalExampleSuggestion[];
   try {
@@ -42,14 +43,14 @@ export async function enrichMissingStudyExamples(
       })),
     });
   } catch {
-    return vocabularySet;
+    return withLearningReadiness(vocabularySet);
   }
 
   const suggestionById = new Map(
     suggestions.map((suggestion) => [suggestion.candidateId, suggestion]),
   );
   const generatedAt = (options.now ?? (() => new Date()))().toISOString();
-  return {
+  return withLearningReadiness({
     ...vocabularySet,
     candidates: vocabularySet.candidates.map((candidate) => {
       if (!canGenerate(candidate)) return candidate;
@@ -67,6 +68,16 @@ export async function enrichMissingStudyExamples(
           validationStatus: "provisional",
         },
       };
+    }),
+  });
+}
+
+function withLearningReadiness(vocabularySet: EnrichedVocabularySet): EnrichedVocabularySet {
+  return {
+    ...vocabularySet,
+    learningReadiness: evaluateLearningSetReadiness({
+      candidates: vocabularySet.candidates,
+      fulfillment: vocabularySet.generationFulfillment,
     }),
   };
 }

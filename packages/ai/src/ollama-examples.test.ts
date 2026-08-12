@@ -79,7 +79,9 @@ describe("OllamaExampleGenerator", () => {
     let calls = 0;
     const generator = new OllamaExampleGenerator({
       fetch: (_input, init) => {
-        const body = JSON.parse(init.body as string) as { messages: { content: string }[] };
+        const body = JSON.parse(init.body as string) as {
+          messages: [{ content: string }, { content: string }];
+        };
         const prompt = JSON.parse(body.messages[1].content) as {
           candidates: { candidateId: string }[];
         };
@@ -124,6 +126,42 @@ describe("OllamaExampleGenerator", () => {
       ["candidate-coach", "candidate-penalty"],
       ["candidate-penalty"],
     ]);
+  });
+
+  it("retries an example that exceeds the requested CEFR length ceiling", async () => {
+    let calls = 0;
+    const generator = new OllamaExampleGenerator({
+      fetch: () => {
+        calls += 1;
+        return Promise.resolve(
+          response({
+            examples: [
+              {
+                candidateId: "candidate-coach",
+                sentence:
+                  calls === 1
+                    ? "The experienced coach carefully reorganized the entire team because the difficult championship match required several complicated tactical changes."
+                    : "The coach helps our team play better.",
+              },
+              ...(calls === 1
+                ? [
+                    {
+                      candidateId: "candidate-penalty",
+                      sentence: "The referee gave a penalty for the foul.",
+                    },
+                  ]
+                : []),
+            ],
+          }),
+        );
+      },
+    });
+
+    await expect(generator.generate(request)).resolves.toEqual([
+      { candidateId: "candidate-coach", sentence: "The coach helps our team play better." },
+      { candidateId: "candidate-penalty", sentence: "The referee gave a penalty for the foul." },
+    ]);
+    expect(calls).toBe(2);
   });
 
   it("returns the validated subset when retries are exhausted", async () => {

@@ -1,5 +1,6 @@
 export * from "./capabilities.js";
 export * from "./execution.js";
+export * from "./example-quality.js";
 export * from "./ollama-vocabulary.js";
 export * from "./ollama-examples.js";
 export * from "./ollama-photo.js";

@@ -34,6 +34,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { definitionRecallChallenge, type ExerciseKind } from "../../../sense-bound-exercise";
 import { runCandidateExercisePipelines } from "./pipeline-adapter";
+import type { LearningSetReadinessReport } from "./learning-set-readiness";
 
 export type LexicalLookup = CandidateLexicalLookup;
 export type FrequencyLookup = FrequencyProvider;
@@ -81,6 +82,7 @@ export interface EnrichedVocabularySet extends Omit<LocalVocabularySet, "candida
   readonly rankingStrategy: "deterministic-weighted-ranking";
   readonly qualitySummary: SetQualityReport;
   readonly generationFulfillment: GenerationFulfillment;
+  readonly learningReadiness?: LearningSetReadinessReport;
   readonly rejectedCandidates: readonly {
     readonly term: string;
     readonly normalizedLemma?: string;

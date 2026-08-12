@@ -91,6 +91,11 @@ describe("generated study example enrichment", () => {
       exampleProvenance: provisional,
     });
     expect(result.candidates[0]).not.toHaveProperty("verifiedExamples");
+    expect(result.learningReadiness).toMatchObject({
+      status: "blocked",
+      contextualExampleCount: 1,
+      provisionalExampleCount: 1,
+    });
   });
 
   it("does not overwrite a verified corpus example", async () => {
@@ -162,5 +167,10 @@ describe("generated study example enrichment", () => {
 
     expect(result.candidates[0]?.example).toBe("The coach trains our team after school.");
     expect(result.candidates[1]?.example).toBe("A verified example is not available yet.");
+    expect(result.learningReadiness).toMatchObject({
+      contextualExampleCount: 1,
+      provisionalExampleCount: 1,
+      sessionReadyCount: 0,
+    });
   });
 });

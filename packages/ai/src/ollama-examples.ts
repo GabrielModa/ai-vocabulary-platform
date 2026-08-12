@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assessGeneratedExample, maximumExampleWords } from "./example-quality.js";
 import type { OllamaFetch } from "./ollama-vocabulary.js";
 
 const partOfSpeechSchema = z.enum([
@@ -67,33 +68,6 @@ function formatFor(candidateIds: readonly string[]) {
       },
     },
   } as const;
-}
-
-function escapePattern(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-function containsRequestedTerm(sentence: string, term: string): boolean {
-  return new RegExp(`(^|[^\\p{L}\\p{N}])${escapePattern(term)}([^\\p{L}\\p{N}]|$)`, "iu").test(
-    sentence,
-  );
-}
-
-function isStructurallyUseful(sentence: string): boolean {
-  const wordCount = sentence.split(/\s+/u).filter(Boolean).length;
-  let hasForbiddenControlCharacter = false;
-  for (let index = 0; index < sentence.length; index += 1) {
-    if (sentence.charCodeAt(index) < 32) {
-      hasForbiddenControlCharacter = true;
-      break;
-    }
-  }
-  return (
-    wordCount >= 5 &&
-    wordCount <= 30 &&
-    !hasForbiddenControlCharacter &&
-    !/https?:\/\//iu.test(sentence)
-  );
 }
 
 export class OllamaExampleGeneratorError extends Error {
@@ -166,7 +140,7 @@ export class OllamaExampleGenerator {
                     requirements: [
                       "Use the supplied definition and part of speech exactly",
                       "Use the exact term naturally in one sentence",
-                      "Use 5 to 30 words",
+                      `Use 5 to ${String(maximumExampleWords(request.data.level))} words`,
                       "Keep the language appropriate for the CEFR level",
                       "Do not add facts about the learner",
                     ],
@@ -216,8 +190,11 @@ export class OllamaExampleGenerator {
           !candidate ||
           accepted.has(parsedExample.data.candidateId) ||
           !pendingIds.includes(parsedExample.data.candidateId) ||
-          !isStructurallyUseful(parsedExample.data.sentence) ||
-          !containsRequestedTerm(parsedExample.data.sentence, candidate.term)
+          assessGeneratedExample({
+            sentence: parsedExample.data.sentence,
+            term: candidate.term,
+            level: request.data.level,
+          }).status !== "accepted"
         ) {
           continue;
         }
