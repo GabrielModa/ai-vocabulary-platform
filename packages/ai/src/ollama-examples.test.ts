@@ -74,35 +74,98 @@ describe("OllamaExampleGenerator", () => {
     expect(body.messages[1]?.content).toContain("a punishment for breaking a rule in a sport");
   });
 
-  it("rejects a sentence that does not contain the requested term", async () => {
+  it("keeps valid items and retries only candidates with invalid sentences", async () => {
+    const requestedCandidateIds: string[][] = [];
+    let calls = 0;
     const generator = new OllamaExampleGenerator({
-      fetch: () =>
-        Promise.resolve(
+      fetch: (_input, init) => {
+        const body = JSON.parse(init.body as string) as { messages: { content: string }[] };
+        const prompt = JSON.parse(body.messages[1].content) as {
+          candidates: { candidateId: string }[];
+        };
+        requestedCandidateIds.push(prompt.candidates.map(({ candidateId }) => candidateId));
+        calls += 1;
+        return Promise.resolve(
+          response(
+            calls === 1
+              ? {
+                  examples: [
+                    {
+                      candidateId: "candidate-coach",
+                      sentence: "The coach trains our team after school.",
+                    },
+                    {
+                      candidateId: "candidate-penalty",
+                      sentence: "The referee punished the player today.",
+                    },
+                  ],
+                }
+              : {
+                  examples: [
+                    {
+                      candidateId: "candidate-penalty",
+                      sentence: "The referee gave a penalty for the foul.",
+                    },
+                  ],
+                },
+          ),
+        );
+      },
+    });
+
+    await expect(generator.generate(request)).resolves.toEqual([
+      { candidateId: "candidate-coach", sentence: "The coach trains our team after school." },
+      {
+        candidateId: "candidate-penalty",
+        sentence: "The referee gave a penalty for the foul.",
+      },
+    ]);
+    expect(requestedCandidateIds).toEqual([
+      ["candidate-coach", "candidate-penalty"],
+      ["candidate-penalty"],
+    ]);
+  });
+
+  it("returns the validated subset when retries are exhausted", async () => {
+    let calls = 0;
+    const generator = new OllamaExampleGenerator({
+      maxAttempts: 2,
+      fetch: () => {
+        calls += 1;
+        return Promise.resolve(
           response({
             examples: [
-              { candidateId: "candidate-coach", sentence: "The manager trains our team." },
               {
-                candidateId: "candidate-penalty",
-                sentence: "The referee punished the player.",
+                candidateId: "candidate-coach",
+                sentence: "The coach trains our team after school.",
               },
             ],
           }),
-        ),
+        );
+      },
     });
 
-    await expect(generator.generate(request)).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
+    await expect(generator.generate(request)).resolves.toEqual([
+      { candidateId: "candidate-coach", sentence: "The coach trains our team after school." },
+    ]);
+    expect(calls).toBe(2);
   });
 
-  it("rejects partial batches instead of silently dropping a learner item", async () => {
+  it("fails honestly when no valid example is recovered", async () => {
+    let calls = 0;
     const generator = new OllamaExampleGenerator({
-      fetch: () =>
-        Promise.resolve(
+      maxAttempts: 2,
+      fetch: () => {
+        calls += 1;
+        return Promise.resolve(
           response({
-            examples: [{ candidateId: "candidate-coach", sentence: "The coach trains our team." }],
+            examples: [{ candidateId: "candidate-coach", sentence: "The manager trains us." }],
           }),
-        ),
+        );
+      },
     });
 
     await expect(generator.generate(request)).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
+    expect(calls).toBe(2);
   });
 });

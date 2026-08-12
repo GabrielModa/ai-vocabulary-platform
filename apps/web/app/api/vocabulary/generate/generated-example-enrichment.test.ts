@@ -131,4 +131,36 @@ describe("generated study example enrichment", () => {
 
     expect(result.candidates[0]?.example).toBe("A verified example is not available yet.");
   });
+
+  it("applies a validated partial result and keeps unresolved examples honest", async () => {
+    const source = vocabularySet();
+    const coach = source.candidates[0];
+    if (!coach) throw new Error("Expected coach fixture");
+    const penalty: EnrichedCandidate = {
+      ...coach,
+      term: "penalty",
+      candidateId: "candidate-penalty",
+      normalizedLemma: "penalty",
+      senseId: "oewn-penalty-n",
+      rank: 2,
+      qualityReport: {
+        ...coach.qualityReport,
+        candidateId: "candidate-penalty",
+      },
+    };
+    const result = await enrichMissingStudyExamples(
+      { ...source, candidates: [...source.candidates, penalty] },
+      {
+        topic: "football",
+        level: "A2",
+        generate: () =>
+          Promise.resolve([
+            { candidateId: "candidate-coach", sentence: "The coach trains our team after school." },
+          ]),
+      },
+    );
+
+    expect(result.candidates[0]?.example).toBe("The coach trains our team after school.");
+    expect(result.candidates[1]?.example).toBe("A verified example is not available yet.");
+  });
 });
