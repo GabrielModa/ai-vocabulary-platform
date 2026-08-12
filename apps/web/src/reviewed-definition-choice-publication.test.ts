@@ -101,7 +101,7 @@ describe("reviewed definition-choice publication", () => {
     ).toEqual(["reject", "reject"]);
   });
 
-  it("publishes a mixed-POS reviewed set when every meaning is verified", () => {
+  it("rejects a mixed-POS reviewed set when credible same-POS distractors are unavailable", () => {
     const candidates = [
       candidate("referee", "An official who enforces the rules."),
       candidate("coach", "A person who trains a team."),
@@ -116,10 +116,10 @@ describe("reviewed definition-choice publication", () => {
     });
 
     expect(outcomes.map(({ outcome }) => outcome.outcome)).toEqual([
-      "publish",
-      "publish",
-      "publish",
-      "publish",
+      "reject",
+      "reject",
+      "reject",
+      "reject",
     ]);
   });
 });
