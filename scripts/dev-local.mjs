@@ -2,8 +2,10 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { connect } from "node:net";
 import { resolve } from "node:path";
+import { parseDevLocalOptions } from "./dev-local-options.mjs";
 
 const root = process.cwd();
+const options = parseDevLocalOptions(process.argv.slice(2));
 
 function log(message) {
   console.log(`[dev:local] ${message}`);
@@ -283,7 +285,11 @@ function run(command, args) {
 
 await ensurePostgres();
 await ensureOllama();
-await ensureImageWorker();
+if (options.imagesEnabled) {
+  await ensureImageWorker();
+} else {
+  log("Image worker disabled for this run. Exercises will use text and audio clues only.");
+}
 
 log("Building database runtime...");
 run("pnpm", ["--filter", "@vocabulary/database", "build"]);

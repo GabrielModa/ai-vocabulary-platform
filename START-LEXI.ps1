@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([switch]$NoBrowser)
+param(
+  [switch]$NoBrowser,
+  [switch]$NoImages
+)
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -67,15 +70,23 @@ try {
     throw "A porta 3000 ja esta ocupada. Encerre a execucao anterior antes de usar o launcher."
   }
 
-  Write-Host "Iniciando runtime local completo (banco, migracoes, Ollama, imagens e web)..."
+  $runtimeLabel = if ($NoImages) { "sem imagens" } else { "completo" }
+  Write-Host "Iniciando runtime local $runtimeLabel (banco, migracoes, Ollama e web)..."
   $pnpm = (Get-Command "pnpm.cmd").Source
-  $runtime = Start-LocalProcess $env:ComSpec "/d /s /c `"`"$pnpm`" dev:local`"" $root
+  $runtimeArguments = if ($NoImages) {
+    "/d /s /c `"`"$pnpm`" dev:local -- --no-images`""
+  } else {
+    "/d /s /c `"`"$pnpm`" dev:local`""
+  }
+  $runtime = Start-LocalProcess $env:ComSpec $runtimeArguments $root
   if (-not (Wait-Http $siteUrl 180 $runtime)) {
     if ($runtime.HasExited) { throw "Runtime local encerrou com codigo $($runtime.ExitCode)." }
     throw "Site nao respondeu dentro do prazo. Consulte os logs exibidos pelo runtime."
   }
 
-  if (Test-Http "$workerUrl/health" 5) {
+  if ($NoImages) {
+    Write-Host "Worker de imagens: desativado por escolha desta execucao."
+  } elseif (Test-Http "$workerUrl/health" 5) {
     $health = Invoke-RestMethod -Uri "$workerUrl/health" -TimeoutSec 5
     Write-Host "Worker: $($health.status); dispositivo: $($health.device); modelo pronto: $($health.modelReady)"
   } else {
