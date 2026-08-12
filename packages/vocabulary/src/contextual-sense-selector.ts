@@ -47,6 +47,28 @@ const CONTEXT_STOP_WORDS = new Set([
   "with",
 ]);
 
+const TRUSTED_TOPIC_SEMANTIC_TOKENS: Readonly<Record<string, readonly string[]>> = {
+  football: [
+    "athlete",
+    "ball",
+    "coach",
+    "competition",
+    "foul",
+    "game",
+    "goal",
+    "match",
+    "player",
+    "referee",
+    "rule",
+    "score",
+    "soccer",
+    "sport",
+    "sports",
+    "team",
+  ],
+  soccer: ["athlete", "ball", "foul", "game", "goal", "match", "player", "sport", "team"],
+};
+
 function contextTokens(value: string): ReadonlySet<string> {
   return new Set(
     value
@@ -57,11 +79,20 @@ function contextTokens(value: string): ReadonlySet<string> {
   );
 }
 
+function expandedTopicTokens(value: string): ReadonlySet<string> {
+  const tokens = contextTokens(value);
+  const expanded = new Set(tokens);
+  for (const token of tokens) {
+    for (const related of TRUSTED_TOPIC_SEMANTIC_TOKENS[token] ?? []) expanded.add(related);
+  }
+  return expanded;
+}
+
 /** Selects only when one verified definition explicitly contains more topic terms than every peer. */
 export function selectContextualSenseDeterministically(
   request: ContextualSenseSelectorRequest,
 ): ContextualSenseSelection | undefined {
-  const topicTokens = contextTokens(request.context.topic);
+  const topicTokens = expandedTopicTokens(request.context.topic);
   if (topicTokens.size === 0) return undefined;
 
   const scored = request.allowedSenses
@@ -101,6 +132,7 @@ export type SelectContextualSenseResult =
         | "no-selectable-senses"
         | "selector-unavailable"
         | "invalid-selector-response"
+        | "low-selector-confidence"
         | "selected-sense-not-allowed";
       readonly message: string;
     };
@@ -194,6 +226,13 @@ export async function selectContextualSense(
     return failure(
       "invalid-selector-response",
       "The contextual selector did not return a valid decision",
+    );
+  }
+
+  if (parsed.data.confidence < 0.8) {
+    return failure(
+      "low-selector-confidence",
+      "The contextual selector confidence is too low for automatic selection",
     );
   }
 

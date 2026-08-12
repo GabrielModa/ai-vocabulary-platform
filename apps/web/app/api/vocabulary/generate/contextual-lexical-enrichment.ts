@@ -68,9 +68,19 @@ function withDecision(
 ): ContextuallyResolvedCandidate {
   const selected = resolved.selectedSense;
   if (!selected) return candidate;
+  const verifiedExamples = candidate.verifiedExamplesBySenseId?.[selected.senseId] ?? [];
+  const firstExample = verifiedExamples[0];
 
   return {
     ...candidate,
+    ...(firstExample
+      ? {
+          example: firstExample.sentence,
+          contexts: verifiedExamples.slice(0, 3).map(({ sentence }) => sentence),
+          verifiedExamples,
+          exampleProvenance: firstExample.provenance,
+        }
+      : {}),
     meaning: selected.definition,
     challenge: definitionRecallChallenge(selected.definition),
     exerciseKind: "definition-choice",

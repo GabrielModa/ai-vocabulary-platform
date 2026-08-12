@@ -19,12 +19,18 @@ import {
 import { generateWithDeficitReplacement } from "./replacement-generation";
 import { suggestCandidatesWithTrustedFirst } from "./candidate-suggestion";
 import { enrichMissingStudyExamples } from "./generated-example-enrichment";
+import { resolveVocabularySetContextually } from "./contextual-lexical-enrichment";
+import { OllamaContextualSenseSelector } from "../../../../src/ollama-contextual-sense-selector";
 
 const generator = new OllamaVocabularyGenerator({
   ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
   ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
 });
 const exampleGenerator = new OllamaExampleGenerator({
+  ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
+  ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
+});
+const contextualSenseSelector = new OllamaContextualSenseSelector({
   ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
   ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
 });
@@ -58,7 +64,11 @@ async function generate(input: unknown) {
       );
     },
   });
-  return enrichMissingStudyExamples(vocabularySet, {
+  const contextuallyResolved = await resolveVocabularySetContextually(vocabularySet, {
+    selector: contextualSenseSelector,
+    context: { topic: request.topic, learnerLevel: request.level, locale: "en-US" },
+  });
+  return enrichMissingStudyExamples(contextuallyResolved, {
     topic: request.topic,
     level: request.level,
     generate: (exampleRequest) => exampleGenerator.generate(exampleRequest),

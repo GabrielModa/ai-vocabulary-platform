@@ -65,6 +65,7 @@ export async function resolveCandidateContextually(
     if (
       selection.code === "selector-unavailable" ||
       selection.code === "invalid-selector-response" ||
+      selection.code === "low-selector-confidence" ||
       selection.code === "selected-sense-not-allowed"
     ) {
       return Object.freeze({

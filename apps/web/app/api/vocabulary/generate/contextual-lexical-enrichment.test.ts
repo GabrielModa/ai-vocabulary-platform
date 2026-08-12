@@ -141,4 +141,44 @@ describe("contextual lexical enrichment", () => {
     });
     expect(result.candidates[0]).not.toHaveProperty("senseId");
   });
+
+  it("restores a verified example belonging to the selected sense", async () => {
+    const originalCandidate = vocabularySet.candidates[0];
+    if (!originalCandidate) throw new Error("expected contextual test candidate");
+    const selectedExample = {
+      id: "example-love",
+      senseId: "sense-love",
+      sentence: "She showed great affection for her family.",
+      provenance: { ...provenance, sourceId: "example-love" },
+    };
+    const result = await resolveVocabularySetContextually(
+      {
+        ...vocabularySet,
+        candidates: [
+          {
+            ...originalCandidate,
+            verifiedExamplesBySenseId: { "sense-love": [selectedExample] },
+          },
+        ],
+      },
+      {
+        selector: {
+          select: () =>
+            Promise.resolve({
+              selectedSenseId: "sense-love",
+              confidence: 0.96,
+              reasonCodes: ["topic-match"],
+            }),
+        },
+        context: { topic: "Love", learnerLevel: "B1", locale: "en-US" },
+      },
+    );
+
+    expect(result.candidates[0]).toMatchObject({
+      example: selectedExample.sentence,
+      contexts: [selectedExample.sentence],
+      verifiedExamples: [selectedExample],
+      exampleProvenance: selectedExample.provenance,
+    });
+  });
 });

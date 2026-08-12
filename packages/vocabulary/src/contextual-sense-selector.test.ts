@@ -82,6 +82,47 @@ describe("contextual sense selector", () => {
     });
   });
 
+  it.each([
+    [
+      "coach",
+      "sense:sports-coach",
+      "(sports) someone in charge of training an athlete or a team",
+      "a large comfortable bus used for long journeys",
+    ],
+    [
+      "penalty",
+      "sense:sports-penalty",
+      "a disadvantage or punishment imposed for breaking a rule in a sport",
+      "a payment required for breaking a legal agreement",
+    ],
+    [
+      "tackle",
+      "sense:sports-tackle",
+      "seize and stop a player who is carrying the ball in a sport",
+      "accept as a challenge and attempt to solve a difficult problem",
+    ],
+  ])(
+    "selects the football sense of %s from reviewed semantic evidence",
+    (term, senseId, sports, other) => {
+      expect(
+        selectContextualSenseDeterministically({
+          candidateId: `candidate:${term}`,
+          displayForm: term,
+          normalizedLemma: term,
+          context: { topic: "Football vocabulary", learnerLevel: "B1", locale: "en-US" },
+          allowedSenses: [
+            { senseId, definition: sports, partOfSpeech: term === "tackle" ? "verb" : "noun" },
+            {
+              senseId: `sense:${term}:other`,
+              definition: other,
+              partOfSpeech: term === "tackle" ? "verb" : "noun",
+            },
+          ],
+        }),
+      ).toMatchObject({ selectedSenseId: senseId, confidence: 1 });
+    },
+  );
+
   it("keeps tied or weak contextual evidence for learner review", () => {
     const request = {
       candidateId: "candidate:score:verb",
@@ -263,6 +304,23 @@ describe("contextual sense selector", () => {
       ok: false,
       code: "invalid-selector-response",
     });
+  });
+
+  it("keeps a low-confidence AI decision for learner review", async () => {
+    const result = await selectContextualSense({
+      candidate: candidate([loveSense, medicalSense]),
+      context,
+      selector: {
+        select: () =>
+          Promise.resolve({
+            selectedSenseId: "sense-love",
+            confidence: 0.79,
+            reasonCodes: ["weak-topic-match"],
+          }),
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "low-selector-confidence" });
   });
 
   it("requires a selector only for ambiguous candidates", async () => {
