@@ -28,7 +28,8 @@ export interface CompletedStudySession {
 }
 
 const STORAGE_KEY = "lexi.completed-study-sessions";
-const HISTORY_VERSION = 1;
+const STORAGE_SCHEMA_VERSION = 2;
+const LEGACY_HISTORY_VERSION = 1;
 const MAX_HISTORY_BYTES = 1_000_000;
 const MAX_SESSIONS = 50;
 const levels = new Set(["A2", "B1", "B2", "C1", "C2"]);
@@ -147,22 +148,50 @@ export function readCompletedStudySessions(
     if (!serialized) return Object.freeze([]);
     if (serialized.length > MAX_HISTORY_BYTES) return removeInvalidHistory(storage);
     const envelope: unknown = JSON.parse(serialized);
-    if (
-      !isRecord(envelope) ||
-      envelope.version !== HISTORY_VERSION ||
-      !Array.isArray(envelope.sessions)
-    ) {
+    if (!isRecord(envelope)) {
+      return removeInvalidHistory(storage);
+    }
+    const isCurrent = envelope.schemaVersion === STORAGE_SCHEMA_VERSION;
+    const isLegacy = envelope.version === LEGACY_HISTORY_VERSION && !("schemaVersion" in envelope);
+    if ("schemaVersion" in envelope && !isCurrent) return Object.freeze([]);
+    if ((!isCurrent && !isLegacy) || !Array.isArray(envelope.sessions)) {
       return removeInvalidHistory(storage);
     }
     const sessions = envelope.sessions.map(completedSessionFrom);
     if (sessions.length > MAX_SESSIONS || sessions.some((session) => !session)) {
       return removeInvalidHistory(storage);
     }
-    return Object.freeze(
+    const safeSessions = Object.freeze(
       sessions.filter((session): session is CompletedStudySession => Boolean(session)),
     );
+    if (isLegacy) {
+      try {
+        storage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ schemaVersion: STORAGE_SCHEMA_VERSION, sessions: safeSessions }),
+        );
+      } catch {
+        // Valid legacy history remains usable even when migration cannot be persisted.
+      }
+    }
+    return safeSessions;
   } catch {
     return removeInvalidHistory(storage);
+  }
+}
+
+function hasUnsupportedFutureEnvelope(storage: StudyHistoryStorage): boolean {
+  try {
+    const serialized = storage.getItem(STORAGE_KEY);
+    if (!serialized || serialized.length > MAX_HISTORY_BYTES) return false;
+    const envelope: unknown = JSON.parse(serialized);
+    return (
+      isRecord(envelope) &&
+      typeof envelope.schemaVersion === "number" &&
+      envelope.schemaVersion !== STORAGE_SCHEMA_VERSION
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -171,6 +200,7 @@ export function appendCompletedStudySession(
   session: CompletedStudySession,
 ): void {
   try {
+    if (hasUnsupportedFutureEnvelope(storage)) return;
     const safeSession = completedSessionFrom(session);
     if (!safeSession) return;
     const current = readCompletedStudySessions(storage);
@@ -178,10 +208,10 @@ export function appendCompletedStudySession(
     const sessions = [safeSession, ...current]
       .sort((left, right) => Date.parse(right.completedAt) - Date.parse(left.completedAt))
       .slice(0, MAX_SESSIONS);
-    let serialized = JSON.stringify({ version: HISTORY_VERSION, sessions });
+    let serialized = JSON.stringify({ schemaVersion: STORAGE_SCHEMA_VERSION, sessions });
     while (serialized.length > MAX_HISTORY_BYTES && sessions.length > 0) {
       sessions.pop();
-      serialized = JSON.stringify({ version: HISTORY_VERSION, sessions });
+      serialized = JSON.stringify({ schemaVersion: STORAGE_SCHEMA_VERSION, sessions });
     }
     if (sessions.length > 0) storage.setItem(STORAGE_KEY, serialized);
   } catch {

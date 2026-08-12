@@ -53,6 +53,9 @@ describe("local study history", () => {
     expect(Object.isFrozen(history[0])).toBe(true);
     expect(Object.isFrozen(history[0]?.candidates[0])).toBe(true);
     expect(Object.isFrozen(history[0]?.attempts[0])).toBe(true);
+    expect(JSON.parse(storage.getItem("lexi.completed-study-sessions") ?? "null")).toMatchObject({
+      schemaVersion: 2,
+    });
   });
 
   it("deduplicates completion by session identifier", () => {
@@ -81,18 +84,43 @@ describe("local study history", () => {
     expect(history.at(-1)?.sessionId).toBe("session-5");
   });
 
-  it("removes malformed and unsupported local history", () => {
+  it("removes malformed history but preserves an unknown future version", () => {
     const storage = new MemoryStorage();
     storage.setItem("lexi.completed-study-sessions", "not-json");
     expect(readCompletedStudySessions(storage)).toEqual([]);
     expect(storage.getItem("lexi.completed-study-sessions")).toBeNull();
 
+    const future = JSON.stringify({ schemaVersion: 99, sessions: [completed()] });
+    storage.setItem("lexi.completed-study-sessions", future);
+    expect(readCompletedStudySessions(storage)).toEqual([]);
+    expect(storage.getItem("lexi.completed-study-sessions")).toBe(future);
+  });
+
+  it("migrates a validated version 1 envelope to version 2", () => {
+    const storage = new MemoryStorage();
     storage.setItem(
       "lexi.completed-study-sessions",
-      JSON.stringify({ version: 99, sessions: [completed()] }),
+      JSON.stringify({ version: 1, sessions: [completed()] }),
     );
-    expect(readCompletedStudySessions(storage)).toEqual([]);
-    expect(storage.getItem("lexi.completed-study-sessions")).toBeNull();
+
+    expect(readCompletedStudySessions(storage)).toEqual([completed()]);
+    expect(JSON.parse(storage.getItem("lexi.completed-study-sessions") ?? "null")).toEqual({
+      schemaVersion: 2,
+      sessions: [completed()],
+    });
+  });
+
+  it("returns validated legacy history when migration storage is unavailable", () => {
+    const legacy = JSON.stringify({ version: 1, sessions: [completed()] });
+    const storage: StudyHistoryStorage = {
+      getItem: () => legacy,
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => undefined,
+    };
+
+    expect(readCompletedStudySessions(storage)).toEqual([completed()]);
   });
 
   it("rejects inconsistent scores and unsafe candidate references", () => {
