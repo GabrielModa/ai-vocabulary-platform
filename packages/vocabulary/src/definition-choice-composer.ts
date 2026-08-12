@@ -27,11 +27,7 @@ export type ComposeDefinitionChoiceResult =
     }
   | {
       readonly ok: false;
-      readonly code:
-        | "capability-unavailable"
-        | "invalid-distractor-count"
-        | "duplicate-choice"
-        | "part-of-speech-mismatch";
+      readonly code: "capability-unavailable" | "invalid-distractor-count" | "duplicate-choice";
       readonly message: string;
     };
 
@@ -81,13 +77,6 @@ export function composeDefinitionChoice(
     return failure(
       "invalid-distractor-count",
       "Definition choice requires exactly three distractors",
-    );
-  }
-
-  if (input.distractors.some(({ partOfSpeech }) => partOfSpeech !== input.knowledge.partOfSpeech)) {
-    return failure(
-      "part-of-speech-mismatch",
-      "Definition choice distractors must share the target part of speech",
     );
   }
 

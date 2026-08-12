@@ -159,20 +159,23 @@ describe("definition choice composer", () => {
     });
   });
 
-  it("rejects distractors with a different part of speech", () => {
+  it("composes with a verified cross-POS fallback", () => {
     const verb = knowledge("admire", "To regard with respect.", "verb");
 
-    expect(
-      composeDefinitionChoice({
-        knowledge: target,
-        capabilityPlan: planExerciseCapabilities(target),
-        distractors: [distractors[0], distractors[1], verb],
-      }),
-    ).toEqual({
-      ok: false,
-      code: "part-of-speech-mismatch",
-      message: "Definition choice distractors must share the target part of speech",
+    const result = composeDefinitionChoice({
+      knowledge: target,
+      capabilityPlan: planExerciseCapabilities(target),
+      distractors: [distractors[0], distractors[1], verb],
     });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.exercise.options.map(({ label }) => label)).toEqual([
+      "affection",
+      "agreement",
+      "distance",
+      "admire",
+    ]);
   });
 
   it("rejects a capability plan from another knowledge item", () => {

@@ -16,12 +16,16 @@ const provenance: ContentProvenance = {
   validationStatus: "verified",
 };
 
-function candidate(word: string, definition: string): LearningCandidate {
+function candidate(
+  word: string,
+  definition: string,
+  partOfSpeech: LexicalContent["partOfSpeech"] = "noun",
+): LearningCandidate {
   const sense: LexicalContent = {
     word,
     normalizedWord: word,
     senseId: `sense:${word}`,
-    partOfSpeech: "noun",
+    partOfSpeech,
     definition,
     provenance: {
       ...provenance,
@@ -30,15 +34,15 @@ function candidate(word: string, definition: string): LearningCandidate {
   };
 
   return {
-    candidateId: `candidate:${word}:noun`,
+    candidateId: `candidate:${word}:${partOfSpeech}`,
     displayForm: word,
     normalizedLemma: word,
-    proposedPartOfSpeech: "noun",
+    proposedPartOfSpeech: partOfSpeech,
     lexicalStatus: "verified",
     selectedSense: {
       senseId: sense.senseId,
       definition,
-      partOfSpeech: "noun",
+      partOfSpeech,
       provenance: sense.provenance,
       confirmedBy: "learner-selection",
     },
@@ -95,5 +99,27 @@ describe("reviewed definition-choice publication", () => {
         },
       }).map(({ outcome }) => outcome.outcome),
     ).toEqual(["reject", "reject"]);
+  });
+
+  it("publishes a mixed-POS reviewed set when every meaning is verified", () => {
+    const candidates = [
+      candidate("referee", "An official who enforces the rules."),
+      candidate("coach", "A person who trains a team."),
+      candidate("penalty", "A punishment for breaking a rule."),
+      candidate("tackle", "To stop an opponent by challenging for the ball.", "verb"),
+    ];
+
+    const outcomes = publishReviewedDefinitionChoices({
+      candidates,
+      sources: candidates.map(({ candidateId }) => ({ candidateId })),
+      context: { topic: "Football", learnerLevel: "B1", locale: "en-US" },
+    });
+
+    expect(outcomes.map(({ outcome }) => outcome.outcome)).toEqual([
+      "publish",
+      "publish",
+      "publish",
+      "publish",
+    ]);
   });
 });

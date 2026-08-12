@@ -70,8 +70,11 @@ function compatibilityScore(
   readonly score: number;
   readonly reasons: readonly string[];
 } {
-  const reasons: string[] = ["same-part-of-speech"];
-  let score = 1_000;
+  const samePartOfSpeech = candidate.knowledge.partOfSpeech === target.knowledge.partOfSpeech;
+  const reasons: string[] = [
+    samePartOfSpeech ? "same-part-of-speech" : "cross-part-of-speech-fallback",
+  ];
+  let score = samePartOfSpeech ? 1_000 : 0;
 
   if (candidate.knowledge.context.learnerLevel === target.knowledge.context.learnerLevel) {
     score += 300;
@@ -138,10 +141,6 @@ export function selectDefinitionChoiceDistractors(
 
   const compatible = input.pool.flatMap((candidate) => {
     const knowledge = candidate.knowledge;
-    if (knowledge.partOfSpeech !== input.target.knowledge.partOfSpeech) {
-      return [];
-    }
-
     const knowledgeId = normalize(knowledge.knowledgeId);
     const lemma = normalize(knowledge.normalizedLemma);
     const displayForm = normalize(knowledge.displayForm);

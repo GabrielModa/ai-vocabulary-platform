@@ -168,6 +168,35 @@ describe("definition choice distractor selector", () => {
     ]);
   });
 
+  it("fills a same-POS deficit with lower-ranked verified cross-POS knowledge", () => {
+    const referee = knowledge("referee", "An official who enforces the rules.");
+    const coach = knowledge("coach", "A person who trains a team.");
+    const penalty = knowledge("penalty", "A punishment for breaking a rule.");
+    const tackle = knowledge("tackle", "To stop an opponent by challenging for the ball.", {
+      partOfSpeech: "verb",
+    });
+
+    const result = selectDefinitionChoiceDistractors({
+      target: { knowledge: referee, frequencyPercentile: 0.6 },
+      pool: [
+        { knowledge: tackle, frequencyPercentile: 0.45 },
+        { knowledge: penalty, frequencyPercentile: 0.5 },
+        { knowledge: coach, frequencyPercentile: 0.55 },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.distractors.map(({ knowledge: item }) => item.displayForm)).toEqual([
+      "coach",
+      "penalty",
+      "tackle",
+    ]);
+    expect(result.distractors[0]?.reasons).toContain("same-part-of-speech");
+    expect(result.distractors[2]?.reasons).toContain("cross-part-of-speech-fallback");
+    expect(result.distractors[2]?.score).toBeLessThan(result.distractors[1]?.score ?? 0);
+  });
+
   it("reports the number of compatible items when the pool is insufficient", () => {
     const result = selectDefinitionChoiceDistractors({
       target: { knowledge: target },
@@ -185,7 +214,7 @@ describe("definition choice distractor selector", () => {
       ok: false,
       code: "insufficient-compatible-knowledge",
       message: "Expected 3 compatible distractors",
-      compatibleKnowledgeCount: 1,
+      compatibleKnowledgeCount: 2,
     });
   });
 
