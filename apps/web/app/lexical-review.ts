@@ -23,6 +23,15 @@ export interface LexicalSense {
   readonly provenance: ContentProvenance;
 }
 
+export interface VerifiedPronunciation {
+  readonly word: string;
+  readonly dialect: "en-US" | "en-GB";
+  readonly transcription?: string;
+  readonly notation?: "IPA" | "ARPABET";
+  readonly audioReference?: string;
+  readonly provenance: ContentProvenance;
+}
+
 export interface PublishedReviewExercise {
   readonly exerciseId: string;
   readonly exerciseKind: "cloze";
@@ -74,6 +83,7 @@ export interface ReviewCandidate {
   readonly challenge: string;
   readonly contexts?: readonly string[];
   readonly exampleProvenance?: ContentProvenance;
+  readonly verifiedPronunciations?: readonly VerifiedPronunciation[];
   readonly lexicalValidationStatus?: "verified" | "provisional" | "unavailable";
   readonly senseId?: string;
   readonly lexicalProvenance?: ContentProvenance;
