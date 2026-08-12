@@ -25,7 +25,18 @@ export interface TrustedTopicCandidateResult {
 }
 
 type CatalogTopic =
-  "education" | "football" | "health" | "kitchen" | "technology" | "travel" | "work";
+  | "education"
+  | "environment"
+  | "family"
+  | "football"
+  | "health"
+  | "home"
+  | "kitchen"
+  | "money"
+  | "shopping"
+  | "technology"
+  | "travel"
+  | "work";
 
 const candidate = (
   term: string,
@@ -34,6 +45,86 @@ const candidate = (
 ): TrustedTopicCandidate => ({ term, partOfSpeech, cefrHint });
 
 const CATALOG: Readonly<Record<CatalogTopic, readonly TrustedTopicCandidate[]>> = {
+  family: [
+    candidate("parent", "noun", "A2"),
+    candidate("child", "noun", "A2"),
+    candidate("brother", "noun", "A2"),
+    candidate("sister", "noun", "A2"),
+    candidate("relative", "noun", "B1"),
+    candidate("sibling", "noun", "B1"),
+    candidate("household", "noun", "B1"),
+    candidate("generation", "noun", "B1"),
+    candidate("guardian", "noun", "B2"),
+    candidate("upbringing", "noun", "B2"),
+    candidate("inherit", "verb", "B2"),
+    candidate("estranged", "adjective", "C1"),
+    candidate("kinship", "noun", "C1"),
+    candidate("lineage", "noun", "C2"),
+  ],
+  shopping: [
+    candidate("shop", "noun", "A2"),
+    candidate("price", "noun", "A2"),
+    candidate("cash", "noun", "A2"),
+    candidate("cheap", "adjective", "A2"),
+    candidate("receipt", "noun", "B1"),
+    candidate("refund", "noun", "B1"),
+    candidate("bargain", "noun", "B1"),
+    candidate("afford", "verb", "B1"),
+    candidate("retailer", "noun", "B2"),
+    candidate("discount", "noun", "B2"),
+    candidate("purchase", "verb", "B2"),
+    candidate("warranty", "noun", "B2"),
+    candidate("counterfeit", "adjective", "C1"),
+    candidate("consumerism", "noun", "C1"),
+  ],
+  home: [
+    candidate("room", "noun", "A2"),
+    candidate("chair", "noun", "A2"),
+    candidate("window", "noun", "A2"),
+    candidate("clean", "verb", "A2"),
+    candidate("furniture", "noun", "B1"),
+    candidate("rent", "verb", "B1"),
+    candidate("repair", "verb", "B1"),
+    candidate("neighborhood", "noun", "B1"),
+    candidate("appliance", "noun", "B2"),
+    candidate("renovate", "verb", "B2"),
+    candidate("mortgage", "noun", "B2"),
+    candidate("landlord", "noun", "B2"),
+    candidate("dwelling", "noun", "C1"),
+    candidate("refurbishment", "noun", "C1"),
+  ],
+  environment: [
+    candidate("tree", "noun", "A2"),
+    candidate("water", "noun", "A2"),
+    candidate("animal", "noun", "A2"),
+    candidate("weather", "noun", "A2"),
+    candidate("pollution", "noun", "B1"),
+    candidate("recycle", "verb", "B1"),
+    candidate("climate", "noun", "B1"),
+    candidate("waste", "noun", "B1"),
+    candidate("sustainable", "adjective", "B2"),
+    candidate("emission", "noun", "B2"),
+    candidate("conservation", "noun", "B2"),
+    candidate("renewable", "adjective", "B2"),
+    candidate("biodiversity", "noun", "C1"),
+    candidate("degradation", "noun", "C1"),
+  ],
+  money: [
+    candidate("money", "noun", "A2"),
+    candidate("bank", "noun", "A2"),
+    candidate("pay", "verb", "A2"),
+    candidate("cost", "noun", "A2"),
+    candidate("budget", "noun", "B1"),
+    candidate("save", "verb", "B1"),
+    candidate("borrow", "verb", "B1"),
+    candidate("debt", "noun", "B1"),
+    candidate("invest", "verb", "B2"),
+    candidate("income", "noun", "B2"),
+    candidate("interest", "noun", "B2"),
+    candidate("asset", "noun", "B2"),
+    candidate("inflation", "noun", "C1"),
+    candidate("liquidity", "noun", "C1"),
+  ],
   football: [
     candidate("ball", "noun", "A2"),
     candidate("team", "noun", "A2"),
@@ -155,6 +246,16 @@ const CATALOG: Readonly<Record<CatalogTopic, readonly TrustedTopicCandidate[]>> 
 const ALIASES: Readonly<Record<string, CatalogTopic>> = {
   education: "education",
   football: "football",
+  family: "family",
+  relatives: "family",
+  environment: "environment",
+  climate: "environment",
+  home: "home",
+  housing: "home",
+  money: "money",
+  finance: "money",
+  shopping: "shopping",
+  retail: "shopping",
   soccer: "football",
   health: "health",
   healthcare: "health",
@@ -167,6 +268,28 @@ const ALIASES: Readonly<Record<string, CatalogTopic>> = {
   work: "work",
   workplace: "work",
 };
+
+export interface TrustedTopicCoverage {
+  readonly topic: string;
+  readonly candidateCount: number;
+  readonly levels: Readonly<Record<CefrLevel, number>>;
+}
+
+export function listTrustedTopicCoverage(): readonly TrustedTopicCoverage[] {
+  return Object.freeze(
+    (Object.entries(CATALOG) as [CatalogTopic, readonly TrustedTopicCandidate[]][])
+      .sort(([left], [right]) => left.localeCompare(right, "en"))
+      .map(([topic, candidates]) => {
+        const levels: Record<CefrLevel, number> = { A2: 0, B1: 0, B2: 0, C1: 0, C2: 0 };
+        for (const entry of candidates) levels[entry.cefrHint] += 1;
+        return Object.freeze({
+          topic,
+          candidateCount: candidates.length,
+          levels: Object.freeze(levels),
+        });
+      }),
+  );
+}
 
 const normalize = (value: string): string =>
   value

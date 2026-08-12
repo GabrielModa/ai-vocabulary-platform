@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { suggestTrustedTopicCandidates } from "./trusted-topic-candidates.js";
+import {
+  listTrustedTopicCoverage,
+  suggestTrustedTopicCandidates,
+} from "./trusted-topic-candidates.js";
 
 describe("suggestTrustedTopicCandidates", () => {
   it("resolves aliases and returns only candidate metadata", () => {
@@ -49,5 +52,38 @@ describe("suggestTrustedTopicCandidates", () => {
     expect(
       suggestTrustedTopicCandidates({ topic: "quantum chromodynamics", level: "C2", count: 5 }),
     ).toBeUndefined();
+  });
+
+  it("covers twelve canonical everyday topics with useful pool depth", () => {
+    const coverage = listTrustedTopicCoverage();
+
+    expect(coverage.map(({ topic }) => topic)).toEqual([
+      "education",
+      "environment",
+      "family",
+      "football",
+      "health",
+      "home",
+      "kitchen",
+      "money",
+      "shopping",
+      "technology",
+      "travel",
+      "work",
+    ]);
+    expect(coverage.every(({ candidateCount }) => candidateCount >= 14)).toBe(true);
+    expect(Object.isFrozen(coverage)).toBe(true);
+  });
+
+  it.each([
+    ["relatives", "family"],
+    ["retail", "shopping"],
+    ["housing", "home"],
+    ["climate", "environment"],
+    ["finance", "money"],
+  ])("resolves the %s alias to %s", (alias, canonical) => {
+    expect(
+      suggestTrustedTopicCandidates({ topic: alias, level: "B1", count: 2 })?.resolvedTopic,
+    ).toBe(canonical);
   });
 });
