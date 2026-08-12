@@ -1,5 +1,6 @@
 import {
   localVocabularyRequestSchema,
+  OllamaExampleGenerator,
   OllamaVocabularyError,
   OllamaVocabularyGenerator,
 } from "@vocabulary/ai";
@@ -17,8 +18,13 @@ import {
 } from "./lexical-enrichment";
 import { generateWithDeficitReplacement } from "./replacement-generation";
 import { suggestCandidatesWithTrustedFirst } from "./candidate-suggestion";
+import { enrichMissingStudyExamples } from "./generated-example-enrichment";
 
 const generator = new OllamaVocabularyGenerator({
+  ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
+  ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
+});
+const exampleGenerator = new OllamaExampleGenerator({
   ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
   ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
 });
@@ -33,7 +39,7 @@ async function generate(input: unknown) {
     loadLocalPronunciationLookup(),
   ]);
 
-  return generateWithDeficitReplacement(request, {
+  const vocabularySet = await generateWithDeficitReplacement(request, {
     suggest: (generationRequest, options) =>
       suggestCandidatesWithTrustedFirst(
         generationRequest,
@@ -51,6 +57,11 @@ async function generate(input: unknown) {
         { topic: request.topic, level: request.level },
       );
     },
+  });
+  return enrichMissingStudyExamples(vocabularySet, {
+    topic: request.topic,
+    level: request.level,
+    generate: (exampleRequest) => exampleGenerator.generate(exampleRequest),
   });
 }
 

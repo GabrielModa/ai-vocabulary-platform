@@ -1,0 +1,108 @@
+import { describe, expect, it } from "vitest";
+import { OllamaExampleGenerator } from "./ollama-examples.js";
+import type { OllamaFetch } from "./ollama-vocabulary.js";
+
+const request = {
+  topic: "football",
+  level: "A2" as const,
+  candidates: [
+    {
+      candidateId: "candidate-coach",
+      term: "coach",
+      partOfSpeech: "noun",
+      senseId: "oewn-coach-n",
+      definition: "someone in charge of training a team",
+    },
+    {
+      candidateId: "candidate-penalty",
+      term: "penalty",
+      partOfSpeech: "noun",
+      senseId: "oewn-penalty-n",
+      definition: "a punishment for breaking a rule in a sport",
+    },
+  ],
+};
+
+function response(content: unknown): Response {
+  return new Response(JSON.stringify({ message: { content: JSON.stringify(content) } }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+describe("OllamaExampleGenerator", () => {
+  it("generates the entire missing batch in one sense-bound request", async () => {
+    let capturedInit: RequestInit | undefined;
+    let calls = 0;
+    const fetcher: OllamaFetch = (_input, init) => {
+      calls += 1;
+      capturedInit = init;
+      return Promise.resolve(
+        response({
+          examples: [
+            {
+              candidateId: "candidate-coach",
+              sentence: "The coach trains our team after school.",
+            },
+            {
+              candidateId: "candidate-penalty",
+              sentence: "The referee gave a penalty for the foul.",
+            },
+          ],
+        }),
+      );
+    };
+    const generator = new OllamaExampleGenerator({ fetch: fetcher });
+
+    await expect(generator.generate(request)).resolves.toEqual([
+      {
+        candidateId: "candidate-coach",
+        sentence: "The coach trains our team after school.",
+      },
+      {
+        candidateId: "candidate-penalty",
+        sentence: "The referee gave a penalty for the foul.",
+      },
+    ]);
+    expect(calls).toBe(1);
+    const serializedBody = capturedInit?.body;
+    expect(typeof serializedBody).toBe("string");
+    const body = JSON.parse(serializedBody as string) as {
+      messages: { content: string }[];
+    };
+    expect(body.messages[1]?.content).toContain("oewn-penalty-n");
+    expect(body.messages[1]?.content).toContain("a punishment for breaking a rule in a sport");
+  });
+
+  it("rejects a sentence that does not contain the requested term", async () => {
+    const generator = new OllamaExampleGenerator({
+      fetch: () =>
+        Promise.resolve(
+          response({
+            examples: [
+              { candidateId: "candidate-coach", sentence: "The manager trains our team." },
+              {
+                candidateId: "candidate-penalty",
+                sentence: "The referee punished the player.",
+              },
+            ],
+          }),
+        ),
+    });
+
+    await expect(generator.generate(request)).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
+  });
+
+  it("rejects partial batches instead of silently dropping a learner item", async () => {
+    const generator = new OllamaExampleGenerator({
+      fetch: () =>
+        Promise.resolve(
+          response({
+            examples: [{ candidateId: "candidate-coach", sentence: "The coach trains our team." }],
+          }),
+        ),
+    });
+
+    await expect(generator.generate(request)).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
+  });
+});

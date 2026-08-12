@@ -1062,7 +1062,11 @@ export function CaptureWorkspace() {
                             <div key={`${candidate.term}-context-${String(index)}`}>
                               <span>
                                 <strong>
-                                  {index === 0 ? "Example" : `Context ${String(index + 1)}`}
+                                  {index === 0
+                                    ? candidate.exampleProvenance?.generated
+                                      ? "AI-generated example"
+                                      : "Example"
+                                    : `Context ${String(index + 1)}`}
                                 </strong>
                                 <span>{context}</span>
                               </span>

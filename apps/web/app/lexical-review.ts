@@ -73,6 +73,7 @@ export interface ReviewCandidate {
   readonly example: string;
   readonly challenge: string;
   readonly contexts?: readonly string[];
+  readonly exampleProvenance?: ContentProvenance;
   readonly lexicalValidationStatus?: "verified" | "provisional" | "unavailable";
   readonly senseId?: string;
   readonly lexicalProvenance?: ContentProvenance;
