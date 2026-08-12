@@ -31,6 +31,7 @@ import {
   type CompletedStudySession,
 } from "./local-study-history";
 import { planLocalAdaptiveReview } from "./adaptive-local-review";
+import { summarizeLocalLearningProgress } from "./learning-progress-summary";
 import { buildVerifiedErrorFeedback } from "./verified-error-feedback";
 
 type Mode = "words" | "topic" | "photo";
@@ -286,6 +287,10 @@ export function CaptureWorkspace() {
     completedSessions,
     new Date().toISOString(),
     10,
+  );
+  const learningProgress = summarizeLocalLearningProgress(
+    completedSessions,
+    new Date().toISOString(),
   );
   useEffect(() => {
     setVisualCluesEnabled(readVisualCluesEnabled(window.localStorage));
@@ -877,6 +882,46 @@ export function CaptureWorkspace() {
             </form>
             {completedSessions.length > 0 && (
               <section className="recent-practice" aria-labelledby="recent-practice-title">
+                <section className="learning-progress" aria-labelledby="learning-progress-title">
+                  <div>
+                    <p className="eyebrow">Calculated from retrieval history</p>
+                    <h3 id="learning-progress-title">Learning progress</h3>
+                    <p>
+                      {learningProgress.retrievals.accuracyPercentage}% retrieval accuracy ·{" "}
+                      {learningProgress.dueNow} due now
+                    </p>
+                  </div>
+                  <dl aria-label="Knowledge states">
+                    <div>
+                      <dt>New</dt>
+                      <dd>{learningProgress.states.new}</dd>
+                    </div>
+                    <div>
+                      <dt>Learning</dt>
+                      <dd>{learningProgress.states.learning}</dd>
+                    </div>
+                    <div>
+                      <dt>Review</dt>
+                      <dd>{learningProgress.states.review}</dd>
+                    </div>
+                    <div>
+                      <dt>Mastered</dt>
+                      <dd>{learningProgress.states.mastered}</dd>
+                    </div>
+                    <div>
+                      <dt>Retrievals</dt>
+                      <dd>
+                        {learningProgress.retrievals.correct} of{" "}
+                        {learningProgress.retrievals.attempted}
+                      </dd>
+                    </div>
+                  </dl>
+                  {learningProgress.priorityTerms.length > 0 && (
+                    <p className="learning-priorities">
+                      <strong>Priority now:</strong> {learningProgress.priorityTerms.join(", ")}
+                    </p>
+                  )}
+                </section>
                 <div>
                   <p className="eyebrow">Saved on this device</p>
                   <h3 id="recent-practice-title">Recent practice</h3>

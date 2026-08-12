@@ -425,7 +425,7 @@ describe("VocabularyPage", () => {
       screen.getByRole("heading", { name: "What do you want to learn from?" }),
     ).toBeInTheDocument();
   });
-  it("shows recent completed practice without describing it as mastery", () => {
+  it("shows recent practice with a separate mastery projection", () => {
     appendCompletedStudySession(window.localStorage, {
       version: 1,
       sessionId: "history-session-1",
@@ -444,10 +444,12 @@ describe("VocabularyPage", () => {
     render(<VocabularyPage />);
 
     expect(screen.getByRole("heading", { name: "Recent practice" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Learning progress" })).toBeInTheDocument();
     expect(screen.getByText(generatedSet.title)).toBeInTheDocument();
     expect(screen.getByText("50% · 1 of 2 correct")).toBeInTheDocument();
-    expect(screen.getByText(/Attempt history only/u)).toBeInTheDocument();
-    expect(screen.queryByText(/mastered/u)).not.toBeInTheDocument();
+    expect(screen.getByText(/Calculated from retrieval history/u)).toBeInTheDocument();
+    expect(screen.getByText(/50% retrieval accuracy/u)).toBeInTheDocument();
+    expect(screen.getByText("1 of 2", { selector: "dd" })).toBeInTheDocument();
   });
   it("starts a local adaptive review without generation when visual clues are disabled", () => {
     const completedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1_000).toISOString();
