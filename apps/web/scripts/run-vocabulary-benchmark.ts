@@ -1,4 +1,4 @@
-import { OllamaVocabularyGenerator, type LocalVocabularyRequest } from "@vocabulary/ai";
+import { OllamaVocabularyGenerator } from "@vocabulary/ai";
 import type { VocabularyGenerationMetricFields } from "@vocabulary/observability";
 import {
   enrichVocabularySet,
@@ -13,21 +13,10 @@ import {
   summarizeVocabularyBenchmark,
   type VocabularyBenchmarkRun,
 } from "../src/vocabulary-benchmark.js";
-
-const smokeMatrix: readonly LocalVocabularyRequest[] = Object.freeze([
-  { topic: "football", level: "A2", requestedCount: 6 },
-  { topic: "work", level: "B1", requestedCount: 6 },
-]);
-
-const extendedMatrix: readonly LocalVocabularyRequest[] = Object.freeze([
-  ...smokeMatrix,
-  { topic: "travel", level: "B2", requestedCount: 8 },
-  { topic: "technology", level: "C1", requestedCount: 6 },
-  { topic: "education", level: "C2", requestedCount: 6 },
-]);
+import { selectVocabularyBenchmarkCases } from "../src/vocabulary-benchmark-cases.js";
 
 async function main(): Promise<void> {
-  const matrix = process.argv.includes("--extended") ? extendedMatrix : smokeMatrix;
+  const matrix = selectVocabularyBenchmarkCases(process.argv.slice(2));
   const generator = new OllamaVocabularyGenerator({
     ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
     ...(process.env.OLLAMA_MODEL ? { model: process.env.OLLAMA_MODEL } : {}),
