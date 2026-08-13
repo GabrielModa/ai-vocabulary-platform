@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./styles.css";
+import "./ux-polish.css";
 
 export const metadata: Metadata = {
   description: "Personal vocabulary becomes contextual English practice.",

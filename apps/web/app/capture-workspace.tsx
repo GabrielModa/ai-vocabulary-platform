@@ -773,24 +773,76 @@ export function CaptureWorkspace() {
   const scorableAttempts = attempts.filter(({ voided }) => !voided);
   const percentage =
     scorableAttempts.length === 0 ? 0 : Math.round((score / scorableAttempts.length) * 100);
+  const activeStage = !reviewing ? 1 : !training ? 2 : 3;
+  const canStartTraining =
+    selected.size >= 4 && unresolvedSelectedCount === 0 && !creatingSession && Boolean(draftId);
+  const startTrainingHint =
+    selected.size < 4
+      ? `Select ${String(4 - selected.size)} more ${4 - selected.size === 1 ? "word" : "words"} to continue.`
+      : unresolvedSelectedCount > 0
+        ? `Confirm ${String(unresolvedSelectedCount)} ambiguous ${unresolvedSelectedCount === 1 ? "meaning" : "meanings"} to continue.`
+        : !draftId
+          ? "Generate a fresh word set before training."
+          : creatingSession
+            ? "Preparing your verified exercises…"
+            : "Everything is ready. Start when you are.";
 
   return (
     <main id="main-content" className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#main-content" aria-label="Lexi home">
+        <button
+          className="brand brand-button"
+          type="button"
+          aria-label="Go to Lexi home"
+          onClick={resetSession}
+        >
           <span aria-hidden="true">L</span> Lexi
-        </a>
-        <p className="level-chip">English · A2–C2</p>
+        </button>
+        <div className="topbar-meta">
+          <span className="stage-status">Step {activeStage} of 3</span>
+          <p className="level-chip">English · A2–C2</p>
+        </div>
       </header>
+      <nav className="journey-nav" aria-label="Learning journey">
+        <ol>
+          {["Build", "Review", "Practice"].map((label, index) => {
+            const stage = index + 1;
+            return (
+              <li
+                key={label}
+                className={
+                  stage === activeStage ? "active" : stage < activeStage ? "complete" : undefined
+                }
+                aria-current={stage === activeStage ? "step" : undefined}
+              >
+                <span>{stage < activeStage ? "✓" : stage}</span>
+                <strong>{label}</strong>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
       <div className="workspace">
-        <section className="intro" aria-labelledby="capture-title">
-          <p className="eyebrow">Your vocabulary, made useful</p>
-          <h1 id="capture-title">Turn your world into English practice.</h1>
-          <p>
-            Bring words, a topic, or a photo. Review every suggestion before it becomes part of your
-            training.
-          </p>
-        </section>
+        {!reviewing ? (
+          <section className="intro" aria-labelledby="capture-title">
+            <p className="eyebrow">Your vocabulary, made useful</p>
+            <h1 id="capture-title">Turn your world into English practice.</h1>
+            <p>
+              Bring words, a topic, or a photo. Review every suggestion before it becomes part of
+              your training.
+            </p>
+          </section>
+        ) : (
+          <section className="screen-heading" aria-label="Current learning step">
+            <p className="eyebrow">{training ? "Focused practice" : "Make the set yours"}</p>
+            <h1>{training ? "Practice one thing at a time." : "Review before you train."}</h1>
+            <p>
+              {training
+                ? "Stay on the current question. Feedback appears only after you commit to an answer."
+                : `${title} · ${String(selected.size)} selected · ${level}`}
+            </p>
+          </section>
+        )}
 
         {!reviewing ? (
           <section className="capture-card" aria-labelledby="mode-title">
@@ -1225,6 +1277,10 @@ export function CaptureWorkspace() {
                 );
               })}
             </ul>
+            <div className={`action-readiness${canStartTraining ? " ready" : ""}`}>
+              <span aria-hidden="true">{canStartTraining ? "✓" : "i"}</span>
+              <p>{startTrainingHint}</p>
+            </div>
             <div className="review-actions">
               <button
                 type="button"
@@ -1233,19 +1289,17 @@ export function CaptureWorkspace() {
                   setReviewing(false);
                 }}
               >
-                Back
+                ← Back to source
               </button>
               <button
                 type="button"
                 className="primary-action"
-                disabled={
-                  selected.size < 4 || unresolvedSelectedCount > 0 || creatingSession || !draftId
-                }
+                disabled={!canStartTraining}
                 onClick={() => {
                   void createStudySession();
                 }}
               >
-                {creatingSession ? "Creating study session…" : "I’m ready — start training"}{" "}
+                {creatingSession ? "Preparing exercises…" : "Start practice"}{" "}
                 <span aria-hidden="true">→</span>
               </button>
             </div>
