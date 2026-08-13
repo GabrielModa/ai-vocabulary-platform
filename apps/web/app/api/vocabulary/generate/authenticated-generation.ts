@@ -1,6 +1,6 @@
-import { localVocabularyRequestSchema } from "@vocabulary/ai";
+import { localVocabularyRequestSchema, type LocalVocabularyRequest } from "@vocabulary/ai";
 import type { SessionIdentity, SessionIdentityPort } from "@vocabulary/auth";
-import type { EnrichedVocabularySet } from "./lexical-enrichment";
+import type { EnrichedCandidate, EnrichedVocabularySet } from "./lexical-enrichment";
 import {
   serializeVocabularyGenerationResponse,
   type PublicVocabularyGenerationResponse,
@@ -23,6 +23,10 @@ export interface AuthenticatedVocabularyGenerationDependencies {
   readonly identity: SessionIdentityPort<Headers>;
   readonly drafts: Pick<PersistentStudySessionDrafts, "save">;
   readonly generate: (input: unknown) => Promise<EnrichedVocabularySet>;
+  readonly generateSupplemental?: (
+    input: LocalVocabularyRequest,
+    generated: EnrichedVocabularySet,
+  ) => Promise<readonly EnrichedCandidate[]>;
   readonly now?: () => Date;
   readonly createDraftId?: () => string;
   readonly draftLifetimeMs?: number;
@@ -64,6 +68,7 @@ function learnerIdentity(
 
 function toTrustedDraft(
   generated: EnrichedVocabularySet,
+  supplementalCandidates: readonly EnrichedCandidate[],
   level: string,
   createdAt: string,
 ): TrustedGenerationDraft {
@@ -72,7 +77,7 @@ function toTrustedDraft(
     title: generated.title,
     level,
     createdAt,
-    sourceCandidates: Object.freeze(generated.candidates),
+    sourceCandidates: Object.freeze([...generated.candidates, ...supplementalCandidates]),
     candidates: Object.freeze(
       generated.candidates.map((candidate) =>
         Object.freeze({
@@ -90,6 +95,7 @@ export function createAuthenticatedVocabularyGenerationHandler({
   identity,
   drafts,
   generate,
+  generateSupplemental = () => Promise.resolve([]),
   now = () => new Date(),
   createDraftId = () => `vocabulary-draft:${crypto.randomUUID()}`,
   draftLifetimeMs = 30 * 60 * 1000,
@@ -111,6 +117,7 @@ export function createAuthenticatedVocabularyGenerationHandler({
     }
 
     const generated = await generate(parsed.data);
+    const supplementalCandidates = await generateSupplemental(parsed.data, generated);
     const createdAtDate = now();
     const createdAt = createdAtDate.toISOString();
     const expiresAt = new Date(createdAtDate.getTime() + draftLifetimeMs).toISOString();
@@ -120,7 +127,7 @@ export function createAuthenticatedVocabularyGenerationHandler({
       draftId,
       subjectId: learner.subjectId,
       expiresAt,
-      draft: toTrustedDraft(generated, parsed.data.level, createdAt),
+      draft: toTrustedDraft(generated, supplementalCandidates, parsed.data.level, createdAt),
     });
 
     if (!saved.created) {

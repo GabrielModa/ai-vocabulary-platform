@@ -52,6 +52,14 @@ function selectedLexicalSense(
   });
 }
 
+function selectableSenseCount(candidate: LearningCandidate): number {
+  return candidate.availableSenses.filter(
+    (sense) =>
+      Boolean(sense.definition) &&
+      (!candidate.proposedPartOfSpeech || sense.partOfSpeech === candidate.proposedPartOfSpeech),
+  ).length;
+}
+
 export async function resolveCandidateContextually(
   input: ResolveCandidateContextuallyInput,
 ): Promise<ResolveCandidateContextuallyResult> {
@@ -79,6 +87,14 @@ export async function resolveCandidateContextually(
       ok: false,
       code: "no-selectable-senses",
       message: selection.message,
+    });
+  }
+
+  if (selectableSenseCount(input.candidate) > 1 && selection.decision.decidedBy !== "learner") {
+    return Object.freeze({
+      ok: true,
+      status: "needs-review",
+      candidate: input.candidate,
     });
   }
 

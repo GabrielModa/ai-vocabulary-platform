@@ -21,6 +21,7 @@ import { suggestCandidatesWithTrustedFirst } from "./candidate-suggestion";
 import { enrichMissingStudyExamples } from "./generated-example-enrichment";
 import { resolveVocabularySetContextually } from "./contextual-lexical-enrichment";
 import { OllamaContextualSenseSelector } from "../../../../src/ollama-contextual-sense-selector";
+import { generateTrustedSupplementalDistractors } from "./supplemental-distractor-generation";
 
 const generator = new OllamaVocabularyGenerator({
   ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
@@ -82,6 +83,21 @@ export async function POST(request: Request): Promise<Response> {
       identity: runtime.identity,
       drafts: runtime.drafts,
       generate,
+      generateSupplemental: async (input, generated) => {
+        const [lexicalLookup, frequencyLookup, exampleLookup, pronunciationLookup] =
+          await Promise.all([
+            loadLocalLexicalLookup(),
+            loadLocalFrequencyLookup(),
+            loadLocalExampleLookup(),
+            loadLocalPronunciationLookup(),
+          ]);
+        return generateTrustedSupplementalDistractors(input, generated, {
+          lexicalLookup,
+          frequencyLookup,
+          exampleLookup,
+          pronunciationLookup,
+        });
+      },
     })(request);
   } catch (error) {
     if (error instanceof StudySessionRuntimeUnavailableError) {
