@@ -51,6 +51,31 @@ function candidate(
   };
 }
 
+function sourceCandidate(
+  word: string,
+  definitions: readonly string[],
+  partOfSpeech: LexicalContent["partOfSpeech"] = "noun",
+) {
+  return {
+    candidateId: `candidate:${word}:${partOfSpeech}`,
+    term: word,
+    normalizedLemma: word,
+    type: partOfSpeech,
+    lexicalValidationStatus: "verified" as const,
+    lexicalSenses: definitions.map((definition, index): LexicalContent => ({
+      word,
+      normalizedWord: word,
+      senseId: `sense:${word}:${String(index + 1)}`,
+      partOfSpeech,
+      definition,
+      provenance: {
+        ...provenance,
+        sourceId: `sense:${word}:${String(index + 1)}`,
+      },
+    })),
+  };
+}
+
 describe("reviewed definition-choice publication", () => {
   it("publishes definition choices for a compatible reviewed pool", () => {
     const candidates = [
@@ -121,5 +146,53 @@ describe("reviewed definition-choice publication", () => {
       "reject",
       "reject",
     ]);
+  });
+
+  it("uses unambiguous verified source candidates as a supplemental distractor pool", () => {
+    const target = candidate("player", "A person who takes part in a game.");
+
+    const outcomes = publishReviewedDefinitionChoices({
+      candidates: [target],
+      sources: [
+        { candidateId: target.candidateId },
+        sourceCandidate("coach", ["A person who trains a team."]),
+        sourceCandidate("referee", ["A person who enforces the rules."]),
+        sourceCandidate("fan", ["A person who strongly supports a team."]),
+        sourceCandidate("ball", ["A round object used in games."]),
+      ],
+      context: { topic: "Football", learnerLevel: "A2", locale: "en-US" },
+    });
+
+    expect(outcomes).toHaveLength(1);
+    const outcome = outcomes[0]?.outcome;
+    expect(outcome?.outcome).toBe("publish");
+    if (outcome?.outcome !== "publish" || outcome.exercise.exerciseKind !== "definition-choice")
+      return;
+
+    expect([...outcome.exercise.options].sort()).toEqual(["coach", "fan", "player", "referee"]);
+  });
+
+  it("does not use ambiguous source candidates as supplemental distractors", () => {
+    const target = candidate("player", "A person who takes part in a game.");
+
+    const outcomes = publishReviewedDefinitionChoices({
+      candidates: [target],
+      sources: [
+        { candidateId: target.candidateId },
+        sourceCandidate("coach", ["A person who trains a team.", "A long-distance bus."]),
+        sourceCandidate("referee", ["A person who enforces the rules."]),
+        sourceCandidate("fan", ["A person who strongly supports a team."]),
+        sourceCandidate("supporter", ["A person who supports a team."]),
+      ],
+      context: { topic: "Football", learnerLevel: "A2", locale: "en-US" },
+    });
+
+    expect(outcomes).toHaveLength(1);
+    const outcome = outcomes[0]?.outcome;
+    expect(outcome?.outcome).toBe("publish");
+    if (outcome?.outcome !== "publish" || outcome.exercise.exerciseKind !== "definition-choice")
+      return;
+
+    expect(outcome.exercise.options).not.toContain("coach");
   });
 });

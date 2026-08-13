@@ -1,9 +1,11 @@
 import {
+  createWordKnowledge,
   mapDefinitionChoicePublication,
   publishDefinitionChoice,
   resolveCandidateKnowledge,
   type ExampleContent,
   type LearningCandidate,
+  type LexicalContent,
   type PublishedExerciseSelection,
   type WordKnowledgeContext,
 } from "@vocabulary/domain-vocabulary";
@@ -13,6 +15,11 @@ export interface ReviewedLexicalSourceCandidate {
   readonly frequencyPercentile?: number;
   readonly verifiedExamples?: readonly ExampleContent[];
   readonly verifiedExamplesBySenseId?: Readonly<Record<string, readonly ExampleContent[]>>;
+  readonly term?: string;
+  readonly normalizedLemma?: string;
+  readonly type?: LexicalContent["partOfSpeech"];
+  readonly lexicalValidationStatus?: "verified" | "provisional" | "unavailable";
+  readonly lexicalSenses?: readonly LexicalContent[];
 }
 
 export interface PublishReviewedDefinitionChoicesInput {
@@ -24,6 +31,61 @@ export interface PublishReviewedDefinitionChoicesInput {
 export interface ReviewedDefinitionChoiceOutcome {
   readonly candidateId: string;
   readonly outcome: PublishedExerciseSelection["outcome"];
+}
+
+function supplementalDistractorKnowledge(
+  source: ReviewedLexicalSourceCandidate,
+  context: WordKnowledgeContext,
+) {
+  if (
+    source.lexicalValidationStatus !== "verified" ||
+    source.term === undefined ||
+    source.normalizedLemma === undefined ||
+    source.type === undefined ||
+    source.lexicalSenses === undefined
+  ) {
+    return undefined;
+  }
+
+  const eligibleSenses = source.lexicalSenses.filter(
+    (sense) => sense.partOfSpeech === source.type && Boolean(sense.definition?.trim()),
+  );
+  if (eligibleSenses.length !== 1) {
+    return undefined;
+  }
+
+  const selectedSense = eligibleSenses[0];
+  if (selectedSense === undefined) {
+    return undefined;
+  }
+
+  const result = createWordKnowledge({
+    candidateId: source.candidateId,
+    displayForm: source.term,
+    normalizedLemma: source.normalizedLemma,
+    context,
+    decision: {
+      selectedSenseId: selectedSense.senseId,
+      resolution: "auto-selected",
+      confidence: 1,
+      reasonCodes: ["single-verified-sense"],
+      decidedBy: "single-verified-sense",
+    },
+    evidence: {
+      lexicalSenses: [selectedSense],
+      officialExamples: [],
+      pronunciations: [],
+      cefrClassifications: [],
+    },
+  });
+
+  return result.ok
+    ? Object.freeze({
+        candidateId: source.candidateId,
+        knowledge: result.knowledge,
+        frequencyPercentile: source.frequencyPercentile,
+      })
+    : undefined;
 }
 
 export function publishReviewedDefinitionChoices(
@@ -58,6 +120,16 @@ export function publishReviewedDefinitionChoices(
       : [];
   });
 
+  const reviewedCandidateIds = new Set(input.candidates.map(({ candidateId }) => candidateId));
+  const supplemental = input.sources.flatMap((source) => {
+    if (reviewedCandidateIds.has(source.candidateId)) {
+      return [];
+    }
+    const resolvedSource = supplementalDistractorKnowledge(source, input.context);
+    return resolvedSource === undefined ? [] : [resolvedSource];
+  });
+  const distractorPool = [...resolved, ...supplemental];
+
   return Object.freeze(
     resolved.map((target) => {
       const publication = publishDefinitionChoice({
@@ -67,7 +139,7 @@ export function publishReviewedDefinitionChoices(
             ? { frequencyPercentile: target.frequencyPercentile }
             : {}),
         },
-        pool: resolved
+        pool: distractorPool
           .filter(({ candidateId }) => candidateId !== target.candidateId)
           .map((candidate) => ({
             knowledge: candidate.knowledge,
