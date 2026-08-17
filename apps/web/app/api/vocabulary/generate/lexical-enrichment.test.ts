@@ -242,7 +242,7 @@ describe("server lexical enrichment", () => {
     expect(enriched.candidates[0]).not.toHaveProperty("senseId");
   });
 
-  it("keeps multiple topic-bound senses provisional until learner confirmation", async () => {
+  it("resolves a uniquely topic-bound sense from verified definitions without a model call", async () => {
     const footballSense = {
       ...familySense,
       senseId: "oewn-football-penalty-n",
@@ -280,21 +280,21 @@ describe("server lexical enrichment", () => {
     );
 
     expect(enriched.candidates[0]).toMatchObject({
-      lexicalValidationStatus: "provisional",
-      meaning: "Meaning pending lexical verification.",
+      lexicalValidationStatus: "verified",
+      senseId: footballSense.senseId,
+      meaning: footballSense.definition,
+      lexicalProvenance: { provider: "open-english-wordnet", generated: false },
       learningEvidence: {
         topicRelevance: {
-          score: 0.25,
-          reasonCodes: ["ai-topic-suggestion-only"],
+          score: 1,
+          reasonCodes: ["verified-definition-topic-match"],
         },
       },
       rankingContributions: [
-        { reason: "ambiguous-sense", points: 15 },
-        { reason: "topic-relevance", points: 6 },
+        { reason: "verified-sense", points: 40 },
+        { reason: "topic-relevance", points: 25 },
       ],
     });
-    expect(enriched.candidates[0]).not.toHaveProperty("senseId");
-    expect(enriched.candidates[0]).not.toHaveProperty("lexicalProvenance");
   });
 
   it("marks missing facts as unavailable", async () => {

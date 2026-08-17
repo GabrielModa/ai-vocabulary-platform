@@ -100,6 +100,35 @@ describe("contextual candidate resolution", () => {
     });
   });
 
+  it("resolves an ambiguous candidate when verified topic evidence has a unique winner", async () => {
+    const result = await resolveCandidateContextually({
+      candidate: candidate([loveSense, medicalSense]),
+      context,
+      selector: {
+        decidedBy: "deterministic-context-selector",
+        select: () =>
+          Promise.resolve({
+            selectedSenseId: "sense-love",
+            confidence: 1,
+            reasonCodes: ["exact-topic-definition-match", "deterministic-verified-evidence"],
+          }),
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: "resolved",
+      candidate: {
+        lexicalStatus: "verified",
+        selectedSense: {
+          senseId: "sense-love",
+          confirmedBy: "deterministic-context-selection",
+        },
+      },
+      decision: { decidedBy: "deterministic-context-selector", confidence: 1 },
+    });
+  });
+
   it("keeps the candidate reviewable when AI selection fails", async () => {
     const original = candidate([loveSense, medicalSense]);
     const result = await resolveCandidateContextually({

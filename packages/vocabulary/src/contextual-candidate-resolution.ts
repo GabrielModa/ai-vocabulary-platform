@@ -90,7 +90,11 @@ export async function resolveCandidateContextually(
     });
   }
 
-  if (selectableSenseCount(input.candidate) > 1 && selection.decision.decidedBy !== "learner") {
+  const automaticAmbiguousSelection =
+    selectableSenseCount(input.candidate) > 1 &&
+    selection.decision.decidedBy !== "learner" &&
+    selection.decision.decidedBy !== "deterministic-context-selector";
+  if (automaticAmbiguousSelection) {
     return Object.freeze({
       ok: true,
       status: "needs-review",
