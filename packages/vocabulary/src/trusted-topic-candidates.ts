@@ -1,4 +1,8 @@
 import type { CefrLevel, VocabularyCandidate } from "./model.js";
+import {
+  resolveTrustedSemanticTopic,
+  type TrustedSemanticTopic,
+} from "./topic-semantic-evidence.js";
 
 type PartOfSpeech = VocabularyCandidate["partOfSpeech"];
 
@@ -24,19 +28,7 @@ export interface TrustedTopicCandidateResult {
   readonly candidates: readonly TrustedTopicCandidate[];
 }
 
-type CatalogTopic =
-  | "education"
-  | "environment"
-  | "family"
-  | "football"
-  | "health"
-  | "home"
-  | "kitchen"
-  | "money"
-  | "shopping"
-  | "technology"
-  | "travel"
-  | "work";
+type CatalogTopic = TrustedSemanticTopic;
 
 const candidate = (
   term: string,
@@ -243,32 +235,6 @@ const CATALOG: Readonly<Record<CatalogTopic, readonly TrustedTopicCandidate[]>> 
   ],
 };
 
-const ALIASES: Readonly<Record<string, CatalogTopic>> = {
-  education: "education",
-  football: "football",
-  family: "family",
-  relatives: "family",
-  environment: "environment",
-  climate: "environment",
-  home: "home",
-  housing: "home",
-  money: "money",
-  finance: "money",
-  shopping: "shopping",
-  retail: "shopping",
-  soccer: "football",
-  health: "health",
-  healthcare: "health",
-  kitchen: "kitchen",
-  cooking: "kitchen",
-  technology: "technology",
-  tech: "technology",
-  travel: "travel",
-  tourism: "travel",
-  work: "work",
-  workplace: "work",
-};
-
 export interface TrustedTopicCoverage {
   readonly topic: string;
   readonly candidateCount: number;
@@ -302,7 +268,7 @@ const normalize = (value: string): string =>
 export function suggestTrustedTopicCandidates(
   request: TrustedTopicCandidateRequest,
 ): TrustedTopicCandidateResult | undefined {
-  const resolvedTopic = ALIASES[normalize(request.topic)];
+  const resolvedTopic = resolveTrustedSemanticTopic(request.topic);
   if (!resolvedTopic) return undefined;
 
   const requestedLevelIndex = LEVEL_ORDER.indexOf(request.level);

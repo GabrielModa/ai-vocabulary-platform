@@ -40,6 +40,7 @@ export * from "./owned-study-session-application.js";
 export * from "./study-session-application.js";
 export * from "./study-session-snapshot.js";
 export * from "./topic-generation.js";
+export * from "./topic-semantic-evidence.js";
 export * from "./trusted-topic-candidates.js";
 export * from "./typed-input.js";
 export * from "./workflow.js";

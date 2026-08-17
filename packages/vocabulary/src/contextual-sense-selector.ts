@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { LearningCandidate } from "./candidate-pipeline.js";
 import type { LexicalContent } from "./content.js";
 import type { ContextualSenseDecision, WordKnowledgeContext } from "./lexical-knowledge.js";
+import { semanticEvidenceForTopic, semanticTokens } from "./topic-semantic-evidence.js";
 
 const identifier = z.string().trim().min(1).max(200);
 
@@ -33,85 +34,33 @@ export interface ContextualSenseSelectorPort {
   select(request: ContextualSenseSelectorRequest): Promise<unknown>;
 }
 
-const CONTEXT_STOP_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "for",
-  "in",
-  "of",
-  "on",
-  "the",
-  "to",
-  "vocabulary",
-  "with",
-]);
-
-const TRUSTED_TOPIC_SEMANTIC_TOKENS: Readonly<Record<string, readonly string[]>> = {
-  football: [
-    "athlete",
-    "ball",
-    "coach",
-    "competition",
-    "foul",
-    "game",
-    "goal",
-    "match",
-    "player",
-    "referee",
-    "rule",
-    "score",
-    "soccer",
-    "spatial",
-    "sport",
-    "sports",
-    "team",
-  ],
-  soccer: ["athlete", "ball", "foul", "game", "goal", "match", "player", "sport", "team"],
-};
-
-function contextTokens(value: string): ReadonlySet<string> {
-  return new Set(
-    value
-      .normalize("NFKC")
-      .toLocaleLowerCase("en-US")
-      .split(/[^\p{L}\p{N}]+/u)
-      .filter((token) => token.length > 2 && !CONTEXT_STOP_WORDS.has(token)),
-  );
-}
-
-function expandedTopicTokens(value: string): ReadonlySet<string> {
-  const tokens = contextTokens(value);
-  const expanded = new Set(tokens);
-  for (const token of tokens) {
-    for (const related of TRUSTED_TOPIC_SEMANTIC_TOKENS[token] ?? []) expanded.add(related);
-  }
-  return expanded;
-}
-
-/** Selects only when one verified definition explicitly contains more topic terms than every peer. */
+/** Selects only when weighted, reviewed topic evidence gives one verified definition a clear lead. */
 export function selectContextualSenseDeterministically(
   request: ContextualSenseSelectorRequest,
 ): ContextualSenseSelection | undefined {
-  const topicTokens = expandedTopicTokens(request.context.topic);
-  if (topicTokens.size === 0) return undefined;
+  const evidence = semanticEvidenceForTopic(request.context.topic);
+  if (evidence.tokenCount === 0) return undefined;
 
   const scored = request.allowedSenses
     .map((sense) => {
-      const definitionTokens = contextTokens(sense.definition);
-      const score = [...topicTokens].filter((token) => definitionTokens.has(token)).length;
+      const definitionTokens = semanticTokens(sense.definition);
+      const score = [...definitionTokens].reduce(
+        (total, token) => total + evidence.weightFor(token),
+        0,
+      );
       return { sense, score };
     })
     .sort((left, right) => right.score - left.score);
   const best = scored[0];
   const runnerUp = scored[1];
 
-  if (!best || best.score === 0 || best.score === runnerUp?.score) return undefined;
+  const runnerUpScore = runnerUp?.score ?? 0;
+  if (!best || best.score < 2 || best.score - runnerUpScore < 2) return undefined;
 
   return Object.freeze({
     selectedSenseId: best.sense.senseId,
     confidence: 1,
-    reasonCodes: ["exact-topic-definition-match", "deterministic-verified-evidence"],
+    reasonCodes: ["weighted-topic-definition-match", "deterministic-verified-evidence"],
   });
 }
 

@@ -78,7 +78,7 @@ describe("contextual sense selector", () => {
     ).toEqual({
       selectedSenseId: "sense:football",
       confidence: 1,
-      reasonCodes: ["exact-topic-definition-match", "deterministic-verified-evidence"],
+      reasonCodes: ["weighted-topic-definition-match", "deterministic-verified-evidence"],
     });
   });
 
@@ -172,9 +172,56 @@ describe("contextual sense selector", () => {
     ).toEqual({
       selectedSenseId: "sense:spatial-arrangement",
       confidence: 1,
-      reasonCodes: ["exact-topic-definition-match", "deterministic-verified-evidence"],
+      reasonCodes: ["weighted-topic-definition-match", "deterministic-verified-evidence"],
     });
   });
+
+  it.each([
+    [
+      "money",
+      "bank",
+      "sense:financial",
+      "a financial institution that accepts deposits and lends money",
+      "sloping land beside a river",
+      "noun",
+    ],
+    [
+      "travel",
+      "connection",
+      "sense:journey",
+      "transport used to continue a journey toward a destination",
+      "the state of being joined or linked",
+      "noun",
+    ],
+    [
+      "kitchen",
+      "season",
+      "sense:food",
+      "add salt, herbs, or spices to food while cooking",
+      "make wood suitable for use by drying it",
+      "verb",
+    ],
+  ])(
+    "selects an indirect verified sense for the %s domain",
+    (topic, term, selectedSenseId, matchingDefinition, unrelatedDefinition, partOfSpeech) => {
+      expect(
+        selectContextualSenseDeterministically({
+          candidateId: `candidate:${term}`,
+          displayForm: term,
+          normalizedLemma: term,
+          context: { topic, learnerLevel: "B2", locale: "en-US" },
+          allowedSenses: [
+            { senseId: selectedSenseId, definition: matchingDefinition, partOfSpeech },
+            {
+              senseId: `sense:${term}:other`,
+              definition: unrelatedDefinition,
+              partOfSpeech,
+            },
+          ],
+        }),
+      ).toMatchObject({ selectedSenseId, confidence: 1 });
+    },
+  );
 
   it("keeps tied or weak contextual evidence for learner review", () => {
     const request = {
