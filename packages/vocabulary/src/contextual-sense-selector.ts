@@ -62,6 +62,7 @@ const TRUSTED_TOPIC_SEMANTIC_TOKENS: Readonly<Record<string, readonly string[]>>
     "rule",
     "score",
     "soccer",
+    "spatial",
     "sport",
     "sports",
     "team",

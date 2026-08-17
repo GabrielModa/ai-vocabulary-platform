@@ -123,6 +123,59 @@ describe("contextual sense selector", () => {
     },
   );
 
+  it("selects the football sense of formation from indirect spatial evidence", () => {
+    expect(
+      selectContextualSenseDeterministically({
+        candidateId: "candidate:formation:noun",
+        displayForm: "formation",
+        normalizedLemma: "formation",
+        proposedPartOfSpeech: "noun",
+        context: { topic: "Football vocabulary", learnerLevel: "B2", locale: "en-US" },
+        allowedSenses: [
+          {
+            senseId: "sense:unit-arrangement",
+            definition: "an arrangement of people or things acting as a unit",
+            partOfSpeech: "noun",
+          },
+          {
+            senseId: "sense:fabrication",
+            definition: "the act of fabricating something in a particular shape",
+            partOfSpeech: "noun",
+          },
+          {
+            senseId: "sense:establishment",
+            definition: "the act of forming or establishing something",
+            partOfSpeech: "noun",
+          },
+          {
+            senseId: "sense:geology",
+            definition: "(geology) the geological features of the earth",
+            partOfSpeech: "noun",
+          },
+          {
+            senseId: "sense:spatial-arrangement",
+            definition: "a particular spatial arrangement",
+            partOfSpeech: "noun",
+          },
+          {
+            senseId: "sense:natural-process",
+            definition: "natural process that causes something to form",
+            partOfSpeech: "noun",
+          },
+          {
+            senseId: "sense:mental-creation",
+            definition: "creation by mental activity",
+            partOfSpeech: "noun",
+          },
+        ],
+      }),
+    ).toEqual({
+      selectedSenseId: "sense:spatial-arrangement",
+      confidence: 1,
+      reasonCodes: ["exact-topic-definition-match", "deterministic-verified-evidence"],
+    });
+  });
+
   it("keeps tied or weak contextual evidence for learner review", () => {
     const request = {
       candidateId: "candidate:score:verb",
