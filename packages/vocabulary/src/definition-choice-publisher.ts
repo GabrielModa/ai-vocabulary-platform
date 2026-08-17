@@ -31,6 +31,7 @@ export type PublishDefinitionChoiceResult =
 export interface PublishDefinitionChoiceInput {
   readonly target: DefinitionChoiceDistractorEvidence;
   readonly pool: readonly DefinitionChoiceDistractorEvidence[];
+  readonly priorDistractorUseCountByKnowledgeId?: ReadonlyMap<string, number>;
 }
 
 function publicationId(exercise: DefinitionChoiceExercise): string {
@@ -53,6 +54,9 @@ export function publishDefinitionChoice(
   const selection = selectDefinitionChoiceDistractors({
     target: input.target,
     pool: input.pool,
+    ...(input.priorDistractorUseCountByKnowledgeId
+      ? { priorUseCountByKnowledgeId: input.priorDistractorUseCountByKnowledgeId }
+      : {}),
   });
 
   if (!selection.ok) {

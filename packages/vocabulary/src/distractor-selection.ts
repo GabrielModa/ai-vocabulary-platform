@@ -37,6 +37,7 @@ export interface SelectDistractorsInput {
   readonly answer: DistractorCandidateEvidence;
   readonly pool: readonly DistractorCandidateEvidence[];
   readonly count?: number;
+  readonly priorUseCountByCandidateId?: ReadonlyMap<string, number>;
 }
 
 function normalize(value: string): string {
@@ -69,6 +70,13 @@ function failure(
     message,
     compatibleCandidateCount,
   });
+}
+
+function cyclicCandidateIdOrder(answerCandidateId: string, left: string, right: string): number {
+  const leftWraps = left.localeCompare(answerCandidateId, "en-US") <= 0;
+  const rightWraps = right.localeCompare(answerCandidateId, "en-US") <= 0;
+  if (leftWraps !== rightWraps) return leftWraps ? 1 : -1;
+  return left.localeCompare(right, "en-US");
 }
 
 export function selectDeterministicDistractors(
@@ -119,10 +127,19 @@ export function selectDeterministicDistractors(
   });
 
   const sorted = [...compatible].sort((left, right) => {
+    const leftUseCount = input.priorUseCountByCandidateId?.get(left.candidateId) ?? 0;
+    const rightUseCount = input.priorUseCountByCandidateId?.get(right.candidateId) ?? 0;
+    if (leftUseCount !== rightUseCount) return leftUseCount - rightUseCount;
     const leftDistance = left.frequencyDistance ?? Number.POSITIVE_INFINITY;
     const rightDistance = right.frequencyDistance ?? Number.POSITIVE_INFINITY;
     if (leftDistance !== rightDistance) return leftDistance - rightDistance;
-    return left.candidateId.localeCompare(right.candidateId, "en-US");
+    return input.priorUseCountByCandidateId
+      ? cyclicCandidateIdOrder(
+          input.answer.candidate.candidateId,
+          left.candidateId,
+          right.candidateId,
+        )
+      : left.candidateId.localeCompare(right.candidateId, "en-US");
   });
 
   if (sorted.length < requestedCount) {

@@ -129,6 +129,7 @@ export function publishReviewedDefinitionChoices(
     return resolvedSource === undefined ? [] : [resolvedSource];
   });
   const distractorPool = [...resolved, ...supplemental];
+  const priorUseCountByKnowledgeId = new Map<string, number>();
 
   return Object.freeze(
     resolved.map((target) => {
@@ -147,6 +148,7 @@ export function publishReviewedDefinitionChoices(
               ? { frequencyPercentile: candidate.frequencyPercentile }
               : {}),
           })),
+        priorDistractorUseCountByKnowledgeId: priorUseCountByKnowledgeId,
       });
 
       if (!publication.ok) {
@@ -157,6 +159,14 @@ export function publishReviewedDefinitionChoices(
       }
 
       const mapped = mapDefinitionChoicePublication(publication.publication);
+      if (mapped.ok) {
+        for (const knowledgeId of publication.publication.selectedDistractorKnowledgeIds) {
+          priorUseCountByKnowledgeId.set(
+            knowledgeId,
+            (priorUseCountByKnowledgeId.get(knowledgeId) ?? 0) + 1,
+          );
+        }
+      }
 
       return Object.freeze({
         candidateId: target.candidateId,

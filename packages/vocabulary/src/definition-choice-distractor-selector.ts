@@ -29,6 +29,7 @@ export interface SelectDefinitionChoiceDistractorsInput {
   readonly target: DefinitionChoiceDistractorEvidence;
   readonly pool: readonly DefinitionChoiceDistractorEvidence[];
   readonly count?: number;
+  readonly priorUseCountByKnowledgeId?: ReadonlyMap<string, number>;
 }
 
 type ConcreteSemanticRole = "person" | "group" | "object" | "event" | "place";
@@ -131,6 +132,13 @@ function failure(
   return Object.freeze({ ok: false, code, message, compatibleKnowledgeCount });
 }
 
+function cyclicKnowledgeIdOrder(targetKnowledgeId: string, left: string, right: string): number {
+  const leftWraps = left.localeCompare(targetKnowledgeId, "en-US") <= 0;
+  const rightWraps = right.localeCompare(targetKnowledgeId, "en-US") <= 0;
+  if (leftWraps !== rightWraps) return leftWraps ? 1 : -1;
+  return left.localeCompare(right, "en-US");
+}
+
 export function selectDefinitionChoiceDistractors(
   input: SelectDefinitionChoiceDistractorsInput,
 ): SelectDefinitionChoiceDistractorsResult {
@@ -191,11 +199,19 @@ export function selectDefinitionChoiceDistractors(
     ];
   });
 
-  const sorted = [...compatible].sort((left, right) =>
-    left.score !== right.score
-      ? right.score - left.score
-      : left.knowledge.knowledgeId.localeCompare(right.knowledge.knowledgeId, "en-US"),
-  );
+  const sorted = [...compatible].sort((left, right) => {
+    const leftUseCount = input.priorUseCountByKnowledgeId?.get(left.knowledge.knowledgeId) ?? 0;
+    const rightUseCount = input.priorUseCountByKnowledgeId?.get(right.knowledge.knowledgeId) ?? 0;
+    if (leftUseCount !== rightUseCount) return leftUseCount - rightUseCount;
+    if (left.score !== right.score) return right.score - left.score;
+    return input.priorUseCountByKnowledgeId
+      ? cyclicKnowledgeIdOrder(
+          input.target.knowledge.knowledgeId,
+          left.knowledge.knowledgeId,
+          right.knowledge.knowledgeId,
+        )
+      : left.knowledge.knowledgeId.localeCompare(right.knowledge.knowledgeId, "en-US");
+  });
 
   if (sorted.length < requestedCount) {
     return failure(

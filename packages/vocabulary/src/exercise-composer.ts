@@ -57,6 +57,7 @@ export interface ComposeVerifiedExerciseInput {
   readonly answer: DistractorCandidateEvidence;
   readonly examples: readonly ExampleContent[];
   readonly distractorPool: readonly DistractorCandidateEvidence[];
+  readonly priorDistractorUseCountByCandidateId?: ReadonlyMap<string, number>;
 }
 
 function failure(
@@ -119,6 +120,9 @@ export function composeVerifiedExercise(
     answer: input.answer,
     pool: input.distractorPool,
     count: 3,
+    ...(input.priorDistractorUseCountByCandidateId
+      ? { priorUseCountByCandidateId: input.priorDistractorUseCountByCandidateId }
+      : {}),
   });
 
   if (!distractorSelection.ok) {

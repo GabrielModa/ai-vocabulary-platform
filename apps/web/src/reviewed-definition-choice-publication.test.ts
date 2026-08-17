@@ -195,4 +195,31 @@ describe("reviewed definition-choice publication", () => {
 
     expect(outcome.exercise.options).not.toContain("coach");
   });
+
+  it("rotates definition distractors instead of repeating a fixed trio", () => {
+    const words = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel"];
+    const candidates = words.map((word) => candidate(word, `The verified meaning of ${word}.`));
+
+    const outcomes = publishReviewedDefinitionChoices({
+      candidates,
+      sources: candidates.map(({ candidateId }) => ({ candidateId, frequencyPercentile: 0.5 })),
+      context: { topic: "Education", learnerLevel: "B2", locale: "en-US" },
+    });
+    const published = outcomes.flatMap(({ outcome }) =>
+      outcome.outcome === "publish" && outcome.exercise.exerciseKind === "definition-choice"
+        ? [outcome.exercise]
+        : [],
+    );
+    const distractorUsage = new Map<string, number>();
+    for (const exercise of published) {
+      for (const option of exercise.options) {
+        if (option === exercise.answer) continue;
+        distractorUsage.set(option, (distractorUsage.get(option) ?? 0) + 1);
+      }
+    }
+    const counts = [...distractorUsage.values()];
+
+    expect(published).toHaveLength(words.length);
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+  });
 });

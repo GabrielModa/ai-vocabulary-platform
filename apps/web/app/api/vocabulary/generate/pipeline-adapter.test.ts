@@ -187,4 +187,34 @@ describe("API exercise pipeline adapter", () => {
     expect(second).toEqual(first);
     expect(inputs[0].examples[0].sentence).toBe(sentenceBefore);
   });
+
+  it("rotates compatible distractors across the complete exercise set", () => {
+    const words = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel"];
+    const inputs = words.map((word) => {
+      const value = candidate(word, "noun");
+      return {
+        candidate: value,
+        frequency: frequency(0.5),
+        examples: [exampleFor(value, `The ${word} remained visible throughout the lesson.`)],
+      };
+    });
+
+    const published = runCandidateExercisePipelines(inputs).flatMap(({ outcome }) =>
+      outcome.outcome === "publish" ? [outcome.exercise] : [],
+    );
+    const signatures = published.map((exercise) =>
+      [...exercise.distractorCandidateIds].sort().join("|"),
+    );
+    const usage = new Map<string, number>();
+    for (const exercise of published) {
+      for (const candidateId of exercise.distractorCandidateIds) {
+        usage.set(candidateId, (usage.get(candidateId) ?? 0) + 1);
+      }
+    }
+    const counts = [...usage.values()];
+
+    expect(published).toHaveLength(words.length);
+    expect(new Set(signatures).size).toBeGreaterThan(2);
+    expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+  });
 });
