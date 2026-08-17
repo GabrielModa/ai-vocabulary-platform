@@ -189,7 +189,7 @@ describe("definition choice distractor selector", () => {
       ok: false,
       code: "insufficient-compatible-knowledge",
       message: "Expected 3 compatible distractors",
-      compatibleKnowledgeCount: 1,
+      compatibleKnowledgeCount: 2,
     });
   });
 
@@ -229,7 +229,7 @@ describe("definition choice distractor selector", () => {
     });
   });
 
-  it("rejects same-topic nouns that reveal the answer through semantic category", () => {
+  it("uses a different concrete role only when the same-role pool is too shallow", () => {
     const ball = knowledge("ball", "A round object that is hit or thrown or kicked in games.", {
       topic: "football",
       learnerLevel: "A2",
@@ -256,12 +256,20 @@ describe("definition choice distractor selector", () => {
       pool: [{ knowledge: match }, { knowledge: player }, { knowledge: team }],
     });
 
-    expect(result).toEqual({
-      ok: false,
-      code: "insufficient-compatible-knowledge",
-      message: "Expected 3 compatible distractors",
-      compatibleKnowledgeCount: 0,
-    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.distractors.map(({ knowledge: item }) => item.displayForm).sort()).toEqual([
+      "match",
+      "player",
+      "team",
+    ]);
+    expect(result.distractors.every(({ reasons }) => reasons.includes("same-part-of-speech"))).toBe(
+      true,
+    );
+    expect(result.distractors.every(({ reasons }) => !reasons.includes("same-semantic-role"))).toBe(
+      true,
+    );
   });
 
   it("keeps concrete distractors in the same semantic role", () => {

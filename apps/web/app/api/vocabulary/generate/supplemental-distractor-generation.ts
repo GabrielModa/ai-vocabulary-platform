@@ -1,4 +1,4 @@
-import { suggestTrustedTopicCandidates } from "@vocabulary/domain-vocabulary";
+import { suggestTrustedDistractorCandidates } from "@vocabulary/domain-vocabulary";
 import type { LocalVocabularyRequest, LocalVocabularySet } from "@vocabulary/ai";
 import type { EnrichedCandidate, EnrichedVocabularySet } from "./lexical-enrichment";
 import { enrichVocabularySet } from "./lexical-enrichment";
@@ -6,7 +6,7 @@ import { enrichVocabularySet } from "./lexical-enrichment";
 const PENDING_MEANING = "Meaning pending lexical verification.";
 const PENDING_EXAMPLE = "A verified example is not available yet.";
 const PENDING_CHALLENGE = "Confirm the intended meaning before training.";
-const SUPPLEMENTAL_COUNT = 8;
+const SUPPLEMENTAL_COUNT = 24;
 
 export interface SupplementalDistractorLookups {
   readonly lexicalLookup: Parameters<typeof enrichVocabularySet>[1];
@@ -17,7 +17,7 @@ export interface SupplementalDistractorLookups {
 
 function asVocabularySet(
   title: string,
-  candidates: NonNullable<ReturnType<typeof suggestTrustedTopicCandidates>>["candidates"],
+  candidates: ReturnType<typeof suggestTrustedDistractorCandidates>["candidates"],
 ): LocalVocabularySet {
   return {
     title,
@@ -36,14 +36,14 @@ export async function generateTrustedSupplementalDistractors(
   generated: EnrichedVocabularySet,
   lookups: SupplementalDistractorLookups,
 ): Promise<readonly EnrichedCandidate[]> {
-  const trusted = suggestTrustedTopicCandidates({
+  const trusted = suggestTrustedDistractorCandidates({
     topic: request.topic,
     level: request.level,
     count: SUPPLEMENTAL_COUNT,
     excludedTerms: generated.candidates.map(({ normalizedLemma }) => normalizedLemma),
   });
 
-  if (!trusted || trusted.candidates.length === 0) return [];
+  if (trusted.candidates.length === 0) return [];
 
   const enriched = await enrichVocabularySet(
     asVocabularySet(`${generated.title} distractor reserve`, trusted.candidates),

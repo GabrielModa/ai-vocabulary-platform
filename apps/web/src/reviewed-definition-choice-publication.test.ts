@@ -259,4 +259,61 @@ describe("reviewed definition-choice publication", () => {
     expect(published).toHaveLength(words.length);
     expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
   });
+
+  it("publishes a ten-word mixed-POS set from a deeper verified reserve", () => {
+    const nouns = [
+      candidate("player", "A person who takes part in a sport."),
+      candidate("coach", "A person responsible for training athletes."),
+      candidate("referee", "An official who enforces the rules."),
+      candidate("penalty", "A punishment imposed for breaking a rule."),
+      candidate("formation", "The arrangement of athletes on the field."),
+      candidate("team", "A group competing together in a sport."),
+      candidate("match", "An organized contest between opponents."),
+    ];
+    const verbs = [
+      candidate("score", "To gain a point in a game.", "verb"),
+      candidate("tackle", "To challenge an opponent for possession.", "verb"),
+      candidate("pass", "To send an object to another participant.", "verb"),
+    ];
+    const candidates = [...nouns, ...verbs];
+    const supplementalNouns = ["teacher", "doctor", "ticket", "recipe", "budget"].map((word) =>
+      sourceCandidate(word, [`The verified meaning of ${word}.`]),
+    );
+    const supplementalVerbs = ["learn", "recover", "afford", "repair", "recycle"].map((word) =>
+      sourceCandidate(word, [`The verified action ${word}.`], "verb"),
+    );
+
+    const outcomes = publishReviewedDefinitionChoices({
+      candidates,
+      sources: [
+        ...candidates.map(({ candidateId }) => ({ candidateId })),
+        ...supplementalNouns,
+        ...supplementalVerbs,
+      ],
+      context: { topic: "Football", learnerLevel: "B1", locale: "en-US" },
+    });
+    const published = outcomes.flatMap(({ outcome }) =>
+      outcome.outcome === "publish" && outcome.exercise.exerciseKind === "definition-choice"
+        ? [outcome.exercise]
+        : [],
+    );
+
+    expect(
+      outcomes
+        .filter(({ outcome }) => outcome.outcome !== "publish")
+        .map(({ candidateId }) => candidateId),
+    ).toEqual([]);
+    expect(published).toHaveLength(10);
+    expect(
+      new Set(published.map(({ options }) => [...options].sort().join("|"))).size,
+    ).toBeGreaterThan(2);
+    expect(
+      published.every(
+        ({ answer, options }) =>
+          options.every(
+            (option, index) => options.indexOf(option) === index && option.trim() !== "",
+          ) && options.includes(answer),
+      ),
+    ).toBe(true);
+  });
 });

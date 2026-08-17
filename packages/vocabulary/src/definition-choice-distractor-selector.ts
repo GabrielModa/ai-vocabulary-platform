@@ -155,7 +155,6 @@ export function selectDefinitionChoiceDistractors(
   const targetDisplayForm = normalize(input.target.knowledge.displayForm);
   const targetDefinition = normalize(input.target.knowledge.selectedSense.definition);
   const targetPartOfSpeech = input.target.knowledge.partOfSpeech;
-  const targetRole = inferConcreteSemanticRole(input.target.knowledge.selectedSense.definition);
 
   const seenKnowledgeIds = new Set<string>([normalize(input.target.knowledge.knowledgeId)]);
   const seenLemmas = new Set<string>([targetLemma]);
@@ -170,8 +169,6 @@ export function selectDefinitionChoiceDistractors(
     const displayForm = normalize(knowledge.displayForm);
     const senseId = normalize(knowledge.selectedSense.senseId);
     const definition = normalize(knowledge.selectedSense.definition);
-    const candidateRole = inferConcreteSemanticRole(knowledge.selectedSense.definition);
-
     if (
       !knowledgeId ||
       !lemma ||
@@ -179,7 +176,6 @@ export function selectDefinitionChoiceDistractors(
       !senseId ||
       !definition ||
       knowledge.partOfSpeech !== targetPartOfSpeech ||
-      (targetRole !== undefined && candidateRole !== targetRole) ||
       seenKnowledgeIds.has(knowledgeId) ||
       seenLemmas.has(lemma) ||
       seenDisplayForms.has(displayForm) ||

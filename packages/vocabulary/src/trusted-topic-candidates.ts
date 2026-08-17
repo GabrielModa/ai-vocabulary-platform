@@ -28,6 +28,11 @@ export interface TrustedTopicCandidateResult {
   readonly candidates: readonly TrustedTopicCandidate[];
 }
 
+export interface TrustedDistractorCandidateResult {
+  readonly catalogVersion: string;
+  readonly candidates: readonly TrustedTopicCandidate[];
+}
+
 type CatalogTopic = TrustedSemanticTopic;
 
 const candidate = (
@@ -293,4 +298,77 @@ export function suggestTrustedTopicCandidates(
     .map(({ entry }) => entry);
 
   return { catalogVersion: CATALOG_VERSION, resolvedTopic, candidates };
+}
+
+const DISTRACTOR_PART_OF_SPEECH_ORDER: readonly PartOfSpeech[] = [
+  "noun",
+  "verb",
+  "adjective",
+  "adverb",
+  "phrasal-verb",
+  "collocation",
+  "expression",
+  "other",
+];
+
+/**
+ * Builds a hidden, deterministic reserve from the complete curated catalog.
+ * Topic-local entries remain preferred inside each part of speech, while round-robin selection
+ * prevents the noun-heavy catalog from starving verbs and adjectives.
+ */
+export function suggestTrustedDistractorCandidates(
+  request: TrustedTopicCandidateRequest,
+): TrustedDistractorCandidateResult {
+  const resolvedTopic = resolveTrustedSemanticTopic(request.topic);
+  const requestedLevelIndex = LEVEL_ORDER.indexOf(request.level);
+  const exclusions = new Set((request.excludedTerms ?? []).map(normalize));
+  const count = Math.max(0, Math.min(100, Math.trunc(request.count)));
+  const seen = new Set<string>();
+
+  const ranked = (Object.entries(CATALOG) as [CatalogTopic, readonly TrustedTopicCandidate[]][])
+    .flatMap(([topic, candidates]) =>
+      candidates.map((entry, position) => ({ entry, position, topic })),
+    )
+    .filter(({ entry }) => {
+      const term = normalize(entry.term);
+      if (exclusions.has(term) || seen.has(term)) return false;
+      seen.add(term);
+      return true;
+    })
+    .sort((left, right) => {
+      const levelDistance =
+        Math.abs(LEVEL_ORDER.indexOf(left.entry.cefrHint) - requestedLevelIndex) -
+        Math.abs(LEVEL_ORDER.indexOf(right.entry.cefrHint) - requestedLevelIndex);
+      if (levelDistance !== 0) return levelDistance;
+      const leftIsLocal = left.topic === resolvedTopic;
+      const rightIsLocal = right.topic === resolvedTopic;
+      if (leftIsLocal !== rightIsLocal) return leftIsLocal ? -1 : 1;
+      const topicOrder = left.topic.localeCompare(right.topic, "en");
+      return topicOrder || left.position - right.position;
+    });
+
+  const queues = new Map<PartOfSpeech, TrustedTopicCandidate[]>();
+  for (const { entry } of ranked) {
+    const queue = queues.get(entry.partOfSpeech) ?? [];
+    queue.push(entry);
+    queues.set(entry.partOfSpeech, queue);
+  }
+
+  const candidates: TrustedTopicCandidate[] = [];
+  while (candidates.length < count) {
+    let selectedInRound = false;
+    for (const partOfSpeech of DISTRACTOR_PART_OF_SPEECH_ORDER) {
+      const next = queues.get(partOfSpeech)?.shift();
+      if (next === undefined) continue;
+      candidates.push(next);
+      selectedInRound = true;
+      if (candidates.length === count) break;
+    }
+    if (!selectedInRound) break;
+  }
+
+  return Object.freeze({
+    catalogVersion: CATALOG_VERSION,
+    candidates: Object.freeze(candidates),
+  });
 }

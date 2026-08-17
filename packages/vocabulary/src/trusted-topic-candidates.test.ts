@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   listTrustedTopicCoverage,
   suggestTrustedTopicCandidates,
+  suggestTrustedDistractorCandidates,
 } from "./trusted-topic-candidates.js";
 
 describe("suggestTrustedTopicCandidates", () => {
@@ -85,5 +86,49 @@ describe("suggestTrustedTopicCandidates", () => {
     expect(
       suggestTrustedTopicCandidates({ topic: alias, level: "B1", count: 2 })?.resolvedTopic,
     ).toBe(canonical);
+  });
+});
+
+describe("suggestTrustedDistractorCandidates", () => {
+  it("fills a topic-local deficit from the wider catalog and balances parts of speech", () => {
+    const result = suggestTrustedDistractorCandidates({
+      topic: "football",
+      level: "B1",
+      count: 18,
+      excludedTerms: ["score", "tackle"],
+    });
+
+    expect(result.candidates).toHaveLength(18);
+    const footballTerms = new Set([
+      "ball",
+      "team",
+      "player",
+      "match",
+      "score",
+      "goal",
+      "coach",
+      "referee",
+      "penalty",
+      "tackle",
+      "substitute",
+      "possession",
+      "formation",
+      "offside",
+      "equalizer",
+      "fixture",
+    ]);
+    expect(result.candidates.some(({ term }) => !footballTerms.has(term))).toBe(true);
+    expect(
+      result.candidates.filter(({ partOfSpeech }) => partOfSpeech === "verb").length,
+    ).toBeGreaterThanOrEqual(4);
+    expect(new Set(result.candidates.map(({ term }) => term)).size).toBe(result.candidates.length);
+    expect(result).toEqual(
+      suggestTrustedDistractorCandidates({
+        topic: "football",
+        level: "B1",
+        count: 18,
+        excludedTerms: ["score", "tackle"],
+      }),
+    );
   });
 });
