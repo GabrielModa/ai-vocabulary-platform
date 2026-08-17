@@ -92,7 +92,7 @@ const vocabularySet: EnrichedVocabularySet = {
 };
 
 describe("contextual lexical enrichment", () => {
-  it("automatically resolves an ambiguous candidate", async () => {
+  it("keeps an ambiguous candidate provisional despite a confident automatic selection", async () => {
     const select = vi.fn().mockResolvedValue({
       selectedSenseId: "sense-love",
       confidence: 0.95,
@@ -108,14 +108,13 @@ describe("contextual lexical enrichment", () => {
       },
     });
 
+    expect(select).toHaveBeenCalledOnce();
     expect(result.candidates[0]).toMatchObject({
-      meaning: "A feeling of fondness or care.",
-      lexicalValidationStatus: "verified",
-      senseId: "sense-love",
-      senseSelectionConfidence: 0.95,
-      senseSelectionReasonCodes: ["topic-match", "semantic-fit"],
-      senseSelectedBy: "contextual-ai-selector",
+      meaning: "generated meaning",
+      lexicalValidationStatus: "provisional",
     });
+    expect(result.candidates[0]).not.toHaveProperty("senseId");
+    expect(result.candidates[0]).not.toHaveProperty("senseSelectedBy");
   });
 
   it("keeps the manual fallback when selection fails", async () => {
@@ -142,7 +141,7 @@ describe("contextual lexical enrichment", () => {
     expect(result.candidates[0]).not.toHaveProperty("senseId");
   });
 
-  it("restores a verified example belonging to the selected sense", async () => {
+  it("does not promote a sense-bound example before learner confirmation", async () => {
     const originalCandidate = vocabularySet.candidates[0];
     if (!originalCandidate) throw new Error("expected contextual test candidate");
     const selectedExample = {
@@ -175,10 +174,11 @@ describe("contextual lexical enrichment", () => {
     );
 
     expect(result.candidates[0]).toMatchObject({
-      example: selectedExample.sentence,
-      contexts: [selectedExample.sentence],
-      verifiedExamples: [selectedExample],
-      exampleProvenance: selectedExample.provenance,
+      lexicalValidationStatus: "provisional",
+      example: "Generated example.",
     });
+    expect(result.candidates[0]).not.toHaveProperty("senseId");
+    expect(result.candidates[0]).not.toHaveProperty("exampleProvenance");
+    expect(result.candidates[0]?.example).not.toBe(selectedExample.sentence);
   });
 });
