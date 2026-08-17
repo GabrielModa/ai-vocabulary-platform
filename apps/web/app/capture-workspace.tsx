@@ -94,6 +94,20 @@ interface ImageJob {
 
 const IMAGE_POLL_INTERVAL_MS = 2_500;
 const IMAGE_JOB_TIMEOUT_MS = 180_000;
+const GENERATION_STAGES = [
+  {
+    title: "Finding useful words",
+    description: "Choosing vocabulary that matches your topic and level.",
+  },
+  {
+    title: "Checking meanings and level",
+    description: "Keeping trusted lexical facts and removing weak candidates.",
+  },
+  {
+    title: "Preparing your review",
+    description: "Building examples and checking which words can become exercises.",
+  },
+] as const;
 
 function SpeakerIcon() {
   return (
@@ -292,6 +306,7 @@ export function CaptureWorkspace() {
   const [expandedMeanings, setExpandedMeanings] = useState(() => new Set<string>());
   const [selectedSenseIds, setSelectedSenseIds] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [generationStage, setGenerationStage] = useState(0);
   const [creatingSession, setCreatingSession] = useState(false);
   const [error, setError] = useState<string>();
   const [generationShortfall, setGenerationShortfall] = useState<{
@@ -318,11 +333,28 @@ export function CaptureWorkspace() {
     completedSessions,
     new Date().toISOString(),
   );
+  const activeGenerationStage = GENERATION_STAGES[generationStage] ?? GENERATION_STAGES[0];
   useEffect(() => {
     setVisualCluesEnabled(readVisualCluesEnabled(window.localStorage));
     setRestorableSession(readInterruptedStudySession(window.localStorage));
     setCompletedSessions(readCompletedStudySessions(window.localStorage));
   }, []);
+  useEffect(() => {
+    if (!loading) {
+      setGenerationStage(0);
+      return;
+    }
+    const checkingTimer = window.setTimeout(() => {
+      setGenerationStage(1);
+    }, 2_500);
+    const preparingTimer = window.setTimeout(() => {
+      setGenerationStage(2);
+    }, 8_000);
+    return () => {
+      window.clearTimeout(checkingTimer);
+      window.clearTimeout(preparingTimer);
+    };
+  }, [loading]);
   useEffect(() => {
     if (sessionComplete) {
       clearInterruptedStudySession(window.localStorage);
@@ -882,6 +914,26 @@ export function CaptureWorkspace() {
                 </div>
               </aside>
             )}
+            {adaptiveReviewPlan && (
+              <aside className="today-review" aria-labelledby="today-review-title">
+                <div>
+                  <p className="eyebrow">Best next step</p>
+                  <h3 id="today-review-title">Your review is ready</h3>
+                  <p>
+                    {adaptiveReviewPlan.counts.due} due · {adaptiveReviewPlan.counts.new} new ·{" "}
+                    {adaptiveReviewPlan.counts.early} early review
+                  </p>
+                </div>
+                <button
+                  className="primary-action"
+                  type="button"
+                  aria-label="Start adaptive review"
+                  onClick={startAdaptiveReview}
+                >
+                  Review now <span aria-hidden="true">→</span>
+                </button>
+              </aside>
+            )}
             <div className="mode-grid" role="group" aria-label="Vocabulary source">
               {(Object.keys(modeCopy) as Mode[]).map((value) => (
                 <button
@@ -926,7 +978,7 @@ export function CaptureWorkspace() {
                   </label>
                   <label>
                     Number of words
-                    <input required name="count" type="number" min={4} max={50} defaultValue={30} />
+                    <input required name="count" type="number" min={4} max={50} defaultValue={10} />
                   </label>
                 </div>
               )}
@@ -979,6 +1031,25 @@ export function CaptureWorkspace() {
                 {loading ? "Generating locally…" : "Create my word set"}{" "}
                 <span aria-hidden="true">→</span>
               </button>
+              {loading && (
+                <div
+                  className="generation-progress"
+                  role="status"
+                  aria-label="Preparing your word set"
+                  aria-live="polite"
+                >
+                  <span className="generation-spinner" aria-hidden="true" />
+                  <div>
+                    <strong>{activeGenerationStage.title}</strong>
+                    <p>{activeGenerationStage.description}</p>
+                    <small>
+                      {visualCluesEnabled
+                        ? "Images are prepared later in practice and are not part of this wait."
+                        : "Images are off and are not part of this wait."}
+                    </small>
+                  </div>
+                </div>
+              )}
             </form>
             {completedSessions.length > 0 && (
               <section className="recent-practice" aria-labelledby="recent-practice-title">
@@ -1027,17 +1098,6 @@ export function CaptureWorkspace() {
                   <h3 id="recent-practice-title">Recent practice</h3>
                   <p>Attempt history only — mastery is calculated separately over time.</p>
                 </div>
-                {adaptiveReviewPlan && (
-                  <div className="adaptive-review-callout">
-                    <p>
-                      {adaptiveReviewPlan.counts.due} due · {adaptiveReviewPlan.counts.new} new ·{" "}
-                      {adaptiveReviewPlan.counts.early} early review
-                    </p>
-                    <button className="primary-action" type="button" onClick={startAdaptiveReview}>
-                      Start adaptive review
-                    </button>
-                  </div>
-                )}
                 <ol>
                   {completedSessions.slice(0, 3).map((session) => (
                     <li key={session.sessionId}>
@@ -1107,19 +1167,25 @@ export function CaptureWorkspace() {
             )}
             {learningReadiness && (
               <div className="adaptive-review-callout" aria-live="polite">
-                <p>
-                  Learning readiness: {learningReadiness.status}.{" "}
-                  {learningReadiness.sessionReadyCount} of {learningReadiness.requestedCount} words
-                  are eligible for final exercise publication.
-                </p>
-                <small>
-                  Quality score {learningReadiness.score}/100 ·{" "}
-                  {learningReadiness.contextualExampleCount} contextual examples
-                  {learningReadiness.provisionalExampleCount > 0
-                    ? ` · ${String(learningReadiness.provisionalExampleCount)} provisional`
-                    : ""}
-                  . {learningReadiness.recommendations[0] ?? "The set is ready for active recall."}
-                </small>
+                <div>
+                  <p>
+                    {learningReadiness.sessionReadyCount} of {learningReadiness.requestedCount}{" "}
+                    words are ready to practise.
+                  </p>
+                  <small>
+                    {learningReadiness.recommendations[0] ?? "This set is ready for active recall."}
+                  </small>
+                </div>
+                <details>
+                  <summary>Quality details</summary>
+                  <small>
+                    Internal readiness: {learningReadiness.status} · score {learningReadiness.score}
+                    /100 · {learningReadiness.contextualExampleCount} contextual examples
+                    {learningReadiness.provisionalExampleCount > 0
+                      ? ` · ${String(learningReadiness.provisionalExampleCount)} awaiting stronger evidence`
+                      : ""}
+                  </small>
+                </details>
               </div>
             )}
             <ul className="candidate-list">
@@ -1299,7 +1365,7 @@ export function CaptureWorkspace() {
                   void createStudySession();
                 }}
               >
-                {creatingSession ? "Preparing exercises…" : "Start practice"}{" "}
+                {creatingSession ? "Preparing exercises…" : "I’m ready — start training"}{" "}
                 <span aria-hidden="true">→</span>
               </button>
             </div>

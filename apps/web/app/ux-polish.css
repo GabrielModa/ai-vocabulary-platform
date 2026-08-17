@@ -338,6 +338,13 @@ select:focus-visible {
   .review-actions .secondary-action {
     width: 100%;
   }
+  .today-review {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .today-review .primary-action {
+    width: 100%;
+  }
   .learning-progress dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -356,5 +363,8 @@ select:focus-visible {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+  .generation-spinner {
+    animation: none;
   }
 }

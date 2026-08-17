@@ -176,6 +176,64 @@ afterEach(() => {
 });
 
 describe("VocabularyPage", () => {
+  it("defaults topic creation to a focused ten-word session", () => {
+    render(<VocabularyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Topic" }));
+
+    expect(screen.getByRole("spinbutton", { name: "Number of words" })).toHaveValue(10);
+  });
+
+  it("shows staged local-generation guidance without implying image wait", async () => {
+    let resolveGeneration: ((response: Response) => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveGeneration = resolve;
+          }),
+      ),
+    );
+    render(<VocabularyPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Topic" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Use visual clues/u }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my word set" }));
+
+    expect(
+      await screen.findByRole("status", { name: "Preparing your word set" }),
+    ).toHaveTextContent("Finding useful words");
+    expect(screen.getByText(/Images are off and are not part of this wait/i)).toBeInTheDocument();
+
+    resolveGeneration?.(responseJson(generationEnvelope(generatedSet)));
+  });
+
+  it("puts today's adaptive review before creating another set", () => {
+    appendCompletedStudySession(window.localStorage, {
+      version: 1,
+      sessionId: "priority-review-1",
+      completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1_000).toISOString(),
+      title: generatedSet.title,
+      level: "B1",
+      candidates: generatedSet.candidates,
+      selectedTerms: generatedSet.candidates.map(({ term }) => term),
+      attempts: generatedSet.candidates.map(({ term }) => ({
+        term,
+        chosenTerm: term,
+        correct: true,
+      })),
+      score: { correct: 4, attempted: 4, percentage: 100 },
+    });
+
+    render(<VocabularyPage />);
+
+    const reviewHeading = screen.getByRole("heading", { name: "Your review is ready" });
+    const creationAction = screen.getByRole("button", { name: "Create my word set" });
+    expect(
+      reviewHeading.compareDocumentPosition(creationAction) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("offers words, topic, and photo capture with CEFR levels", () => {
     render(<VocabularyPage />);
     expect(

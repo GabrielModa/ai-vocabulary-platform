@@ -2,7 +2,8 @@
 
 ## Status
 
-Frozen at Task 090.
+Core reviewed-learning contracts frozen at Task 090. The learner-facing no-image journey is
+completed through Task 146.
 
 ## Product contract
 
@@ -72,6 +73,21 @@ The gate covers:
 - Next.js production build;
 - repository formatting.
 
+## Learner-facing no-image journey
+
+The local MVP supports a complete learning loop without waiting for generated images:
+
+1. Create a focused set from words or a topic; ten words is the pedagogical default.
+2. Review, select, study, and resolve genuinely ambiguous meanings before publication.
+3. Practise verified cloze, definition-choice, and adaptive typed-recall exercises.
+4. Receive immediate verified feedback, navigate the set, and inspect the final report.
+5. Preserve interrupted sessions and completed attempts locally.
+6. Prioritize due adaptive review on the next visit.
+
+Generation communicates time-based stages without claiming fabricated provider progress. Lexical
+readiness is explained in learner-facing language; diagnostic scores remain available through
+optional details.
+
 ## Extension rules
 
 New lexical providers must map evidence into existing domain contracts rather than bypass
@@ -91,7 +107,8 @@ Changes to frozen invariants require a new ADR and an updated MVP release gate.
 
 ## Next product phase
 
-The next phase should build product differentiation on this baseline:
+After browser acceptance of the local release, the next phase should build product differentiation
+on this baseline:
 
 - official CEFR calibration and frequency ranking;
 - richer lexical-source aggregation;

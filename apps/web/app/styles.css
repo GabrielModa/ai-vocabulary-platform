@@ -138,9 +138,28 @@ h2 {
 }
 .mode-grid,
 .resume-session,
+.today-review,
 .capture-form,
 .recent-practice {
   grid-column: 2;
+}
+.today-review {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem;
+  border: 1px solid #c6ff48;
+  border-radius: 1rem;
+  background: rgb(198 255 72 / 7%);
+}
+.today-review h3,
+.today-review p {
+  margin: 0;
+}
+.today-review > div {
+  display: grid;
+  gap: 0.35rem;
 }
 .resume-session {
   display: grid;
@@ -285,6 +304,40 @@ h2 {
   gap: 1.25rem;
   padding-top: 1.5rem;
   border-top: 1px solid #2d3239;
+}
+.generation-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid #4b535f;
+  border-radius: 0.85rem;
+  background: #11151a;
+}
+.generation-progress div {
+  display: grid;
+  gap: 0.25rem;
+}
+.generation-progress p,
+.generation-progress small {
+  margin: 0;
+  color: #aeb4bd;
+  line-height: 1.45;
+}
+.generation-spinner {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  border: 2px solid #4b535f;
+  border-top-color: #c6ff48;
+  border-radius: 50%;
+  animation: generation-spin 800ms linear infinite;
+}
+@keyframes generation-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .form-heading h3 {
   margin: 0 0 0.35rem;
