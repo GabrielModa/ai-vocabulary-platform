@@ -19,4 +19,12 @@ describe("vocabulary benchmark cases", () => {
     expect(selectVocabularyBenchmarkCases(["--extended", "--coverage"])).toHaveLength(5);
     expect(Object.isFrozen(selectVocabularyBenchmarkCases(["--coverage"]))).toBe(true);
   });
+
+  it("selects identical uncatalogued cases for direct model comparison", () => {
+    expect(selectVocabularyBenchmarkCases(["--model-comparison"])).toEqual([
+      { topic: "photography", level: "A2", requestedCount: 6 },
+      { topic: "gardening", level: "B1", requestedCount: 6 },
+      { topic: "negotiation", level: "C1", requestedCount: 6 },
+    ]);
+  });
 });

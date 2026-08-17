@@ -40,6 +40,7 @@ describe("Ollama vocabulary provider", () => {
     });
     expect(requestBody.options).toMatchObject({ num_predict: 160 });
     expect(requestBody.keep_alive).toBe("30m");
+    expect(requestBody.think).toBe(false);
     expect(typeof body === "string" ? body : "").not.toContain("contexts");
   });
 

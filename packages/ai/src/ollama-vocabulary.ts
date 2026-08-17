@@ -194,6 +194,7 @@ export class OllamaVocabularyGenerator {
         body: JSON.stringify({
           model: this.options.model ?? "qwen2.5:3b",
           keep_alive: "30m",
+          think: false,
           stream: false,
           format: suggestionFormat(batchCount),
           options: { temperature: 0.2, num_predict: 96 + batchCount * 32 },

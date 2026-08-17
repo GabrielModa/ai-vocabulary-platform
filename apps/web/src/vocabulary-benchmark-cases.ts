@@ -20,9 +20,16 @@ const coverageCases: readonly LocalVocabularyRequest[] = Object.freeze([
   { topic: "money", level: "C1", requestedCount: 6 },
 ]);
 
+const modelComparisonCases: readonly LocalVocabularyRequest[] = Object.freeze([
+  { topic: "photography", level: "A2", requestedCount: 6 },
+  { topic: "gardening", level: "B1", requestedCount: 6 },
+  { topic: "negotiation", level: "C1", requestedCount: 6 },
+]);
+
 export function selectVocabularyBenchmarkCases(
   arguments_: readonly string[],
 ): readonly LocalVocabularyRequest[] {
+  if (arguments_.includes("--model-comparison")) return modelComparisonCases;
   if (arguments_.includes("--coverage")) return coverageCases;
   if (arguments_.includes("--extended")) return extendedCases;
   return smokeCases;
