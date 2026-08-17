@@ -20,6 +20,7 @@ export interface ReviewedLexicalSourceCandidate {
   readonly type?: LexicalContent["partOfSpeech"];
   readonly lexicalValidationStatus?: "verified" | "provisional" | "unavailable";
   readonly lexicalSenses?: readonly LexicalContent[];
+  readonly senseId?: string;
 }
 
 export interface PublishReviewedDefinitionChoicesInput {
@@ -50,11 +51,18 @@ function supplementalDistractorKnowledge(
   const eligibleSenses = source.lexicalSenses.filter(
     (sense) => sense.partOfSpeech === source.type && Boolean(sense.definition?.trim()),
   );
-  if (eligibleSenses.length !== 1) {
+  if (
+    eligibleSenses.length === 0 ||
+    (source.senseId === undefined && eligibleSenses.length !== 1)
+  ) {
     return undefined;
   }
 
-  const selectedSense = eligibleSenses[0];
+  const selectedSense = source.senseId
+    ? eligibleSenses.find(({ senseId }) => senseId === source.senseId)
+    : eligibleSenses.length === 1
+      ? eligibleSenses[0]
+      : undefined;
   if (selectedSense === undefined) {
     return undefined;
   }
@@ -68,8 +76,12 @@ function supplementalDistractorKnowledge(
       selectedSenseId: selectedSense.senseId,
       resolution: "auto-selected",
       confidence: 1,
-      reasonCodes: ["single-verified-sense"],
-      decidedBy: "single-verified-sense",
+      reasonCodes:
+        eligibleSenses.length === 1
+          ? ["single-verified-sense"]
+          : ["context-selected-verified-sense"],
+      decidedBy:
+        eligibleSenses.length === 1 ? "single-verified-sense" : "deterministic-context-selector",
     },
     evidence: {
       lexicalSenses: [selectedSense],

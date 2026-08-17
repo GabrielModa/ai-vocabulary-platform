@@ -116,4 +116,29 @@ describe("learning-set readiness", () => {
     expect(report.status).toBe("blocked");
     expect(report.reasonCodes).toContain("insufficient-publishable-exercises");
   });
+
+  it("uses actual publication evidence instead of assuming definitions are publishable", () => {
+    const candidates = [1, 2, 3, 4, 5].map((index) => candidate(index, { example: true }));
+    const report = evaluateLearningSetReadiness({
+      candidates,
+      fulfillment: {
+        status: "exact",
+        requestedCount: 5,
+        deliveredCount: 5,
+        deficitCount: 0,
+        attempts: 1,
+      },
+      publishableCandidateIds: new Set(
+        candidates.slice(0, 2).map(({ candidateId }) => candidateId),
+      ),
+    });
+
+    expect(report).toMatchObject({
+      status: "blocked",
+      definitionReadyCount: 5,
+      sessionReadyCount: 2,
+      deficitCount: 3,
+    });
+    expect(report.reasonCodes).toContain("insufficient-publishable-exercises");
+  });
 });

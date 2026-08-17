@@ -76,6 +76,17 @@ function sourceCandidate(
   };
 }
 
+function contextResolvedSourceCandidate(
+  word: string,
+  selectedIndex: number,
+  definitions: readonly string[],
+) {
+  const source = sourceCandidate(word, definitions);
+  const senseId = source.lexicalSenses[selectedIndex]?.senseId;
+  if (senseId === undefined) throw new Error("Expected a selected fixture sense");
+  return { ...source, senseId };
+}
+
 describe("reviewed definition-choice publication", () => {
   it("publishes definition choices for a compatible reviewed pool", () => {
     const candidates = [
@@ -194,6 +205,32 @@ describe("reviewed definition-choice publication", () => {
       return;
 
     expect(outcome.exercise.options).not.toContain("coach");
+  });
+
+  it("uses an official supplemental sense already resolved by trusted context", () => {
+    const target = candidate("player", "A person who takes part in a game.");
+
+    const outcomes = publishReviewedDefinitionChoices({
+      candidates: [target],
+      sources: [
+        { candidateId: target.candidateId },
+        contextResolvedSourceCandidate("coach", 0, [
+          "A person who trains a team.",
+          "A long-distance bus.",
+        ]),
+        contextResolvedSourceCandidate("referee", 0, [
+          "A person who enforces the rules.",
+          "A person asked to settle an academic dispute.",
+        ]),
+        contextResolvedSourceCandidate("fan", 0, [
+          "A person who strongly supports a team.",
+          "A device that moves air.",
+        ]),
+      ],
+      context: { topic: "Football", learnerLevel: "B1", locale: "en-US" },
+    });
+
+    expect(outcomes[0]?.outcome.outcome).toBe("publish");
   });
 
   it("rotates definition distractors instead of repeating a fixed trio", () => {

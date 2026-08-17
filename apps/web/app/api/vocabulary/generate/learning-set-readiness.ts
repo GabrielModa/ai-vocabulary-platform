@@ -29,6 +29,7 @@ function percentage(value: number, total: number): number {
 export function evaluateLearningSetReadiness(input: {
   readonly candidates: readonly EnrichedCandidate[];
   readonly fulfillment: GenerationFulfillment;
+  readonly publishableCandidateIds?: ReadonlySet<string>;
 }): LearningSetReadinessReport {
   const requestedCount = input.fulfillment.requestedCount;
   const deliveredCount = input.candidates.length;
@@ -52,9 +53,11 @@ export function evaluateLearningSetReadiness(input: {
     (candidate) => candidate.meaning.trim().length > 0,
   ).length;
   const definitionPoolReady = definitionReadyCount >= MINIMUM_SESSION_SIZE;
-  const sessionReadyCount = definitionPoolReady
-    ? definitionReadyCount
-    : Math.min(clozeReadyCount, verifiedLexicalCount);
+  const sessionReadyCount = input.publishableCandidateIds
+    ? verified.filter(({ candidateId }) => input.publishableCandidateIds?.has(candidateId)).length
+    : definitionPoolReady
+      ? definitionReadyCount
+      : Math.min(clozeReadyCount, verifiedLexicalCount);
   const deficitCount = Math.max(0, requestedCount - sessionReadyCount);
 
   const lexicalCoverage = percentage(verifiedLexicalCount, requestedCount);
@@ -74,9 +77,7 @@ export function evaluateLearningSetReadiness(input: {
     ...(verifiedLexicalCount < deliveredCount ? ["lexical-verification-gap"] : []),
     ...(contextualExampleCount < verifiedLexicalCount ? ["example-coverage-gap"] : []),
     ...(provisionalExampleCount > 0 ? ["provisional-examples-present"] : []),
-    ...(!definitionPoolReady && clozeReadyCount < MINIMUM_SESSION_SIZE
-      ? ["insufficient-publishable-exercises"]
-      : []),
+    ...(sessionReadyCount < MINIMUM_SESSION_SIZE ? ["insufficient-publishable-exercises"] : []),
   ];
   const recommendations = [
     ...(status === "blocked"

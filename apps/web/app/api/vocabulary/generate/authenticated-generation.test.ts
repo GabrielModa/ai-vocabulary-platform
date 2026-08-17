@@ -162,7 +162,10 @@ describe("authenticated vocabulary generation", () => {
         draftId: "draft-1",
         expiresAt: "2026-08-05T01:30:00.000Z",
       },
-      generation: { title: "Food vocabulary" },
+      generation: {
+        title: "Food vocabulary",
+        learningReadiness: { status: "blocked", sessionReadyCount: 0 },
+      },
     });
   });
 
