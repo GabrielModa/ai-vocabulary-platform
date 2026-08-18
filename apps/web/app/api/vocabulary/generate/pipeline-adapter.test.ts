@@ -216,5 +216,16 @@ describe("API exercise pipeline adapter", () => {
     expect(published).toHaveLength(words.length);
     expect(new Set(signatures).size).toBeGreaterThan(2);
     expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(1);
+
+    const pairSignatures = published.flatMap((exercise) => {
+      const ids = [...exercise.distractorCandidateIds].sort();
+      return ids.flatMap((left, index) => ids.slice(index + 1).map((right) => `${left}|${right}`));
+    });
+    const pairCounts = new Map<string, number>();
+    for (const signature of pairSignatures) {
+      pairCounts.set(signature, (pairCounts.get(signature) ?? 0) + 1);
+    }
+
+    expect(Math.max(...pairCounts.values())).toBeLessThanOrEqual(2);
   });
 });

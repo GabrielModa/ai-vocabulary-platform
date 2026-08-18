@@ -1,4 +1,5 @@
 import {
+  distractorPairKey,
   runVerifiedExercisePipeline,
   type DistractorCandidateEvidence,
   type ExercisePipelineOutcome,
@@ -31,6 +32,7 @@ export function runCandidateExercisePipelines(
   const verified = inputs.filter((input) => input.candidate.selectedSense !== undefined);
   const distractorPool = Object.freeze(verified.map(evidence));
   const priorUseCountByCandidateId = new Map<string, number>();
+  const priorPairUseCount = new Map<string, number>();
 
   return Object.freeze(
     verified.map((input) => {
@@ -39,6 +41,7 @@ export function runCandidateExercisePipelines(
         examples: input.examples,
         distractorPool,
         priorDistractorUseCountByCandidateId: priorUseCountByCandidateId,
+        priorDistractorPairUseCount: priorPairUseCount,
       });
       if (outcome.outcome === "publish" || outcome.outcome === "request-ai-fallback") {
         for (const candidateId of outcome.exercise.distractorCandidateIds) {
@@ -46,6 +49,16 @@ export function runCandidateExercisePipelines(
             candidateId,
             (priorUseCountByCandidateId.get(candidateId) ?? 0) + 1,
           );
+        }
+        const selected = [...outcome.exercise.distractorCandidateIds];
+        for (let leftIndex = 0; leftIndex < selected.length; leftIndex += 1) {
+          for (let rightIndex = leftIndex + 1; rightIndex < selected.length; rightIndex += 1) {
+            const left = selected[leftIndex];
+            const right = selected[rightIndex];
+            if (!left || !right) continue;
+            const key = distractorPairKey(left, right);
+            priorPairUseCount.set(key, (priorPairUseCount.get(key) ?? 0) + 1);
+          }
         }
       }
       return Object.freeze({

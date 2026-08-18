@@ -184,4 +184,26 @@ describe("deterministic distractor selection", () => {
 
     expect(pool.map((entry) => entry.candidate.normalizedLemma)).toEqual(["zeta", "alpha", "beta"]);
   });
+
+  it("prefers candidates whose pair has not already been repeated in the session", () => {
+    const pairUse = new Map([
+      ["candidate:serve:verb|candidate:taste:verb", 3],
+      ["candidate:cook:verb|candidate:taste:verb", 2],
+    ]);
+    const result = selectDeterministicDistractors({
+      answer: { candidate: candidate("sample", "verb"), frequencyPercentile: 0.5 },
+      pool: [
+        { candidate: candidate("taste", "verb"), frequencyPercentile: 0.5 },
+        { candidate: candidate("serve", "verb"), frequencyPercentile: 0.5 },
+        { candidate: candidate("cook", "verb"), frequencyPercentile: 0.5 },
+        { candidate: candidate("prepare", "verb"), frequencyPercentile: 0.5 },
+      ],
+      priorPairUseCount: pairUse,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      distractors: [{ lemma: "prepare" }, { lemma: "cook" }, { lemma: "serve" }],
+    });
+  });
 });

@@ -38,6 +38,13 @@ export interface SelectDistractorsInput {
   readonly pool: readonly DistractorCandidateEvidence[];
   readonly count?: number;
   readonly priorUseCountByCandidateId?: ReadonlyMap<string, number>;
+  readonly priorPairUseCount?: ReadonlyMap<string, number>;
+}
+
+export function distractorPairKey(leftCandidateId: string, rightCandidateId: string): string {
+  return [leftCandidateId, rightCandidateId]
+    .sort((left, right) => left.localeCompare(right, "en-US"))
+    .join("|");
 }
 
 function normalize(value: string): string {
@@ -130,6 +137,17 @@ export function selectDeterministicDistractors(
     const leftUseCount = input.priorUseCountByCandidateId?.get(left.candidateId) ?? 0;
     const rightUseCount = input.priorUseCountByCandidateId?.get(right.candidateId) ?? 0;
     if (leftUseCount !== rightUseCount) return leftUseCount - rightUseCount;
+    const pairBurden = (candidateId: string): number =>
+      compatible.reduce(
+        (total, peer) =>
+          peer.candidateId === candidateId
+            ? total
+            : total +
+              (input.priorPairUseCount?.get(distractorPairKey(candidateId, peer.candidateId)) ?? 0),
+        0,
+      );
+    const pairBurdenDifference = pairBurden(left.candidateId) - pairBurden(right.candidateId);
+    if (pairBurdenDifference !== 0) return pairBurdenDifference;
     const leftDistance = left.frequencyDistance ?? Number.POSITIVE_INFINITY;
     const rightDistance = right.frequencyDistance ?? Number.POSITIVE_INFINITY;
     if (leftDistance !== rightDistance) return leftDistance - rightDistance;
