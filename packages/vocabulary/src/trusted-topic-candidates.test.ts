@@ -10,13 +10,13 @@ describe("suggestTrustedTopicCandidates", () => {
   it("resolves aliases and returns only candidate metadata", () => {
     const result = suggestTrustedTopicCandidates({ topic: "soccer", level: "B1", count: 4 });
 
-    expect(result).toMatchObject({ catalogVersion: "2026-08-12.1", resolvedTopic: "football" });
+    expect(result).toMatchObject({ catalogVersion: "2026-08-18.1", resolvedTopic: "football" });
     expect(result?.candidates).toHaveLength(4);
     expect(result?.candidates[0]).toEqual({ term: "coach", partOfSpeech: "noun", cefrHint: "B1" });
     expect(result?.candidates.every((candidate) => Object.keys(candidate).length === 3)).toBe(true);
   });
 
-  it("ranks the requested level before adjacent levels", () => {
+  it("prefers a harder adjacent level before falling back to easier vocabulary", () => {
     const result = suggestTrustedTopicCandidates({ topic: "work", level: "B2", count: 5 });
 
     expect(result?.candidates.map((candidate) => candidate.cefrHint)).toEqual([
@@ -24,8 +24,30 @@ describe("suggestTrustedTopicCandidates", () => {
       "B2",
       "B2",
       "B2",
-      "B1",
+      "C1",
     ]);
+  });
+
+  it("plans a useful and varied ten-word football set for B2", () => {
+    const result = suggestTrustedTopicCandidates({ topic: "football", level: "B2", count: 10 });
+    const terms = result?.candidates.map(({ term }) => term) ?? [];
+    const partsOfSpeech = new Set(result?.candidates.map(({ partOfSpeech }) => partOfSpeech));
+
+    expect(terms).toEqual([
+      "possession",
+      "equalizer",
+      "substitute",
+      "formation",
+      "tackle",
+      "concede",
+      "retain",
+      "clinical",
+      "fixture",
+      "dominate",
+    ]);
+    expect(terms).not.toEqual(expect.arrayContaining(["ball", "team", "player", "match"]));
+    expect(result?.candidates.every(({ cefrHint }) => cefrHint === "B2")).toBe(true);
+    expect(partsOfSpeech).toEqual(new Set(["noun", "verb", "adjective"]));
   });
 
   it("normalizes exclusions and never returns duplicates", () => {
@@ -94,11 +116,11 @@ describe("suggestTrustedDistractorCandidates", () => {
     const result = suggestTrustedDistractorCandidates({
       topic: "football",
       level: "B1",
-      count: 18,
+      count: 30,
       excludedTerms: ["score", "tackle"],
     });
 
-    expect(result.candidates).toHaveLength(18);
+    expect(result.candidates).toHaveLength(30);
     const footballTerms = new Set([
       "ball",
       "team",
@@ -109,13 +131,23 @@ describe("suggestTrustedDistractorCandidates", () => {
       "coach",
       "referee",
       "penalty",
-      "tackle",
+      "offside",
+      "foul",
+      "header",
       "substitute",
       "possession",
       "formation",
-      "offside",
       "equalizer",
+      "tackle",
+      "concede",
+      "retain",
+      "clinical",
       "fixture",
+      "dominate",
+      "counterattack",
+      "playmaker",
+      "pressing",
+      "overlap",
     ]);
     expect(result.candidates.some(({ term }) => !footballTerms.has(term))).toBe(true);
     expect(
@@ -126,7 +158,7 @@ describe("suggestTrustedDistractorCandidates", () => {
       suggestTrustedDistractorCandidates({
         topic: "football",
         level: "B1",
-        count: 18,
+        count: 30,
         excludedTerms: ["score", "tackle"],
       }),
     );

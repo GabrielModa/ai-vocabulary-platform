@@ -41,7 +41,31 @@ describe("trusted-first candidate suggestion", () => {
       generate,
     );
 
-    expect(result.candidates.map(({ term }) => term)).toEqual(["penalty", "tackle"]);
+    expect(result.candidates.map(({ term }) => term)).toEqual(["penalty", "offside"]);
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("returns the level-aware B2 football set without asking Ollama", async () => {
+    const generate = vi.fn(() => Promise.resolve(generatedByAi));
+
+    const result = await suggestCandidatesWithTrustedFirst(
+      { topic: "football", level: "B2", requestedCount: 10 },
+      { excludedTerms: [] },
+      generate,
+    );
+
+    expect(result.candidates.map(({ term }) => term)).toEqual([
+      "possession",
+      "equalizer",
+      "substitute",
+      "formation",
+      "tackle",
+      "concede",
+      "retain",
+      "clinical",
+      "fixture",
+      "dominate",
+    ]);
     expect(generate).not.toHaveBeenCalled();
   });
 

@@ -6,7 +6,7 @@ import {
 
 type PartOfSpeech = VocabularyCandidate["partOfSpeech"];
 
-const CATALOG_VERSION = "2026-08-12.1";
+const CATALOG_VERSION = "2026-08-18.1";
 const LEVEL_ORDER: readonly CefrLevel[] = ["A2", "B1", "B2", "C1", "C2"];
 
 export interface TrustedTopicCandidate {
@@ -132,13 +132,23 @@ const CATALOG: Readonly<Record<CatalogTopic, readonly TrustedTopicCandidate[]>> 
     candidate("coach", "noun", "B1"),
     candidate("referee", "noun", "B1"),
     candidate("penalty", "noun", "B1"),
-    candidate("tackle", "verb", "B1"),
-    candidate("substitute", "noun", "B2"),
+    candidate("offside", "adjective", "B1"),
+    candidate("foul", "noun", "B1"),
+    candidate("header", "noun", "B1"),
     candidate("possession", "noun", "B2"),
+    candidate("equalizer", "noun", "B2"),
+    candidate("substitute", "noun", "B2"),
     candidate("formation", "noun", "B2"),
-    candidate("offside", "adjective", "B2"),
-    candidate("equalizer", "noun", "C1"),
-    candidate("fixture", "noun", "C1"),
+    candidate("tackle", "verb", "B2"),
+    candidate("concede", "verb", "B2"),
+    candidate("retain", "verb", "B2"),
+    candidate("clinical", "adjective", "B2"),
+    candidate("fixture", "noun", "B2"),
+    candidate("dominate", "verb", "B2"),
+    candidate("counterattack", "noun", "C1"),
+    candidate("playmaker", "noun", "C1"),
+    candidate("pressing", "noun", "C1"),
+    candidate("overlap", "verb", "C1"),
   ],
   work: [
     candidate("job", "noun", "A2"),
@@ -289,10 +299,15 @@ export function suggestTrustedTopicCandidates(
       return true;
     })
     .sort((left, right) => {
-      const levelDistance =
-        Math.abs(LEVEL_ORDER.indexOf(left.entry.cefrHint) - requestedLevelIndex) -
-        Math.abs(LEVEL_ORDER.indexOf(right.entry.cefrHint) - requestedLevelIndex);
-      return levelDistance || left.position - right.position;
+      const levelPriority = (level: CefrLevel): number => {
+        const difference = LEVEL_ORDER.indexOf(level) - requestedLevelIndex;
+        if (difference === 0) return 0;
+        return difference > 0 ? difference * 2 - 1 : Math.abs(difference) * 2;
+      };
+      return (
+        levelPriority(left.entry.cefrHint) - levelPriority(right.entry.cefrHint) ||
+        left.position - right.position
+      );
     })
     .slice(0, count)
     .map(({ entry }) => entry);
