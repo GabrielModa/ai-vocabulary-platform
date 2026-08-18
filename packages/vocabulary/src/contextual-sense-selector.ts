@@ -5,6 +5,7 @@ import type { ContextualSenseDecision, WordKnowledgeContext } from "./lexical-kn
 import { semanticEvidenceForTopic, semanticTokens } from "./topic-semantic-evidence.js";
 
 const identifier = z.string().trim().min(1).max(200);
+const MINIMUM_AI_SELECTION_CONFIDENCE = 0.95;
 
 export const contextualSenseSelectionSchema = z
   .object({
@@ -179,7 +180,7 @@ export async function selectContextualSense(
     );
   }
 
-  if (parsed.data.confidence < 0.8) {
+  if (parsed.data.confidence < MINIMUM_AI_SELECTION_CONFIDENCE) {
     return failure(
       "low-selector-confidence",
       "The contextual selector confidence is too low for automatic selection",

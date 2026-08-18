@@ -361,11 +361,13 @@ export async function enrichVocabularySet(
     verifiedPipeline.candidates.map(async (candidate) => {
       const resolution = await resolveCandidateContextually({
         candidate,
-        context: {
-          topic: vocabularySet.title,
-          learnerLevel: "unspecified",
-          locale: "en-US",
-        },
+        context: context
+          ? { topic: context.topic, learnerLevel: context.level, locale: "en-US" }
+          : {
+              topic: vocabularySet.title,
+              learnerLevel: "unspecified",
+              locale: "en-US",
+            },
         selector: {
           decidedBy: "deterministic-context-selector",
           select: (request) => {

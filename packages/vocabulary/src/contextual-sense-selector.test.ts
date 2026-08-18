@@ -406,7 +406,7 @@ describe("contextual sense selector", () => {
     });
   });
 
-  it("keeps a low-confidence AI decision for learner review", async () => {
+  it("keeps an AI decision below the calibrated threshold for learner review", async () => {
     const result = await selectContextualSense({
       candidate: candidate([loveSense, medicalSense]),
       context,
@@ -414,7 +414,7 @@ describe("contextual sense selector", () => {
         select: () =>
           Promise.resolve({
             selectedSenseId: "sense-love",
-            confidence: 0.79,
+            confidence: 0.94,
             reasonCodes: ["weak-topic-match"],
           }),
       },

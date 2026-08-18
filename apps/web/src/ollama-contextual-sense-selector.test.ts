@@ -60,12 +60,19 @@ describe("Ollama contextual sense selector", () => {
 
     const body = JSON.parse(init.body) as {
       readonly model: string;
+      readonly think: boolean;
+      readonly format: unknown;
       readonly options: { readonly temperature: number };
       readonly messages: readonly {
         readonly content: string;
       }[];
     };
     expect(body.model).toBe("test-model");
+    expect(body.think).toBe(false);
+    expect(body.format).toMatchObject({
+      type: "object",
+      required: ["selectedSenseId", "confidence", "reasonCodes"],
+    });
     expect(body.options.temperature).toBe(0);
     expect(JSON.parse(body.messages[1]?.content ?? "{}")).toEqual({
       topic: "Love",

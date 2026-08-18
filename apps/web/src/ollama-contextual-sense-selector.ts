@@ -5,6 +5,22 @@ import type {
 
 export type OllamaContextualSenseFetch = (input: string, init: RequestInit) => Promise<Response>;
 
+const selectionFormat = {
+  type: "object",
+  additionalProperties: false,
+  required: ["selectedSenseId", "confidence", "reasonCodes"],
+  properties: {
+    selectedSenseId: { type: "string" },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    reasonCodes: {
+      type: "array",
+      minItems: 1,
+      maxItems: 10,
+      items: { type: "string" },
+    },
+  },
+} as const;
+
 export class OllamaContextualSenseSelector implements ContextualSenseSelectorPort {
   constructor(
     private readonly options: {
@@ -21,9 +37,11 @@ export class OllamaContextualSenseSelector implements ContextualSenseSelectorPor
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         model: this.options.model ?? "qwen2.5:3b",
+        keep_alive: "30m",
+        think: false,
         stream: false,
-        format: "json",
-        options: { temperature: 0 },
+        format: selectionFormat,
+        options: { temperature: 0, num_predict: 160 },
         messages: [
           {
             role: "system",

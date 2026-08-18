@@ -78,7 +78,7 @@ describe("contextual candidate resolution", () => {
     });
   });
 
-  it("keeps an ambiguous candidate reviewable even when AI reports high confidence", async () => {
+  it("resolves an ambiguous candidate when constrained AI reports high confidence", async () => {
     const original = candidate([loveSense, medicalSense]);
     const result = await resolveCandidateContextually({
       candidate: original,
@@ -93,10 +93,17 @@ describe("contextual candidate resolution", () => {
       },
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
-      status: "needs-review",
-      candidate: original,
+      status: "resolved",
+      candidate: {
+        selectedSense: {
+          senseId: "sense-love",
+          definition: loveSense.definition,
+          confirmedBy: "contextual-ai-selection",
+        },
+      },
+      decision: { decidedBy: "contextual-ai-selector", confidence: 0.99 },
     });
   });
 

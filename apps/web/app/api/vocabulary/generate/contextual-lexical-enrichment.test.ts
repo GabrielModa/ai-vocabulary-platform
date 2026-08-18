@@ -92,7 +92,7 @@ const vocabularySet: EnrichedVocabularySet = {
 };
 
 describe("contextual lexical enrichment", () => {
-  it("keeps an ambiguous candidate provisional despite a confident automatic selection", async () => {
+  it("promotes an official sense after a confident constrained AI selection", async () => {
     const select = vi.fn().mockResolvedValue({
       selectedSenseId: "sense-love",
       confidence: 0.95,
@@ -110,11 +110,11 @@ describe("contextual lexical enrichment", () => {
 
     expect(select).toHaveBeenCalledOnce();
     expect(result.candidates[0]).toMatchObject({
-      meaning: "generated meaning",
-      lexicalValidationStatus: "provisional",
+      meaning: "A feeling of fondness or care.",
+      lexicalValidationStatus: "verified",
+      senseId: "sense-love",
+      senseSelectedBy: "contextual-ai-selector",
     });
-    expect(result.candidates[0]).not.toHaveProperty("senseId");
-    expect(result.candidates[0]).not.toHaveProperty("senseSelectedBy");
   });
 
   it("keeps the manual fallback when selection fails", async () => {
@@ -141,7 +141,7 @@ describe("contextual lexical enrichment", () => {
     expect(result.candidates[0]).not.toHaveProperty("senseId");
   });
 
-  it("does not promote a sense-bound example before learner confirmation", async () => {
+  it("promotes only the verified example bound to the selected official sense", async () => {
     const originalCandidate = vocabularySet.candidates[0];
     if (!originalCandidate) throw new Error("expected contextual test candidate");
     const selectedExample = {
@@ -174,11 +174,10 @@ describe("contextual lexical enrichment", () => {
     );
 
     expect(result.candidates[0]).toMatchObject({
-      lexicalValidationStatus: "provisional",
-      example: "Generated example.",
+      lexicalValidationStatus: "verified",
+      senseId: "sense-love",
+      example: selectedExample.sentence,
+      exampleProvenance: selectedExample.provenance,
     });
-    expect(result.candidates[0]).not.toHaveProperty("senseId");
-    expect(result.candidates[0]).not.toHaveProperty("exampleProvenance");
-    expect(result.candidates[0]?.example).not.toBe(selectedExample.sentence);
   });
 });
